@@ -295,6 +295,11 @@ details.trening .cw-wiersz { background: var(--bg); }
 .dzien-kal.byl:hover { border-color: var(--accent); }
 .dzien-kal.wybrany { background: var(--accent); color: var(--accent-ink); }
 
+/* Historia: wybrany dzień obok kalendarza */
+.h-dzien h3 { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; font-size: 1.25rem; margin: 0 0 2px; }
+.h-tytul { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 0 0 4px; flex-wrap: wrap; }
+.h-tytul .znacznik { margin-left: 0; }
+
 /* Moje treningi: tabela serii */
 .tabela-box { overflow-x: auto; }
 .tabela-box + .tabela-box { margin-top: 16px; }
@@ -426,7 +431,6 @@ body.z-przerwa .app { padding-bottom: 110px; }
         <button class="btn cichy maly" type="button" id="usun-przyklady">Usuń przykładowe wyniki</button>
       </div>
       <div id="historia"><p class="pusto">Ładowanie…</p></div>
-      <p style="margin: 14px 0 0;"><button class="btn cichy maly" type="button" id="wiecej" hidden>Pokaż starsze</button></p>
     </section>
 
     <!-- Synchronizacja: logowanie do Supabase, żeby telefon i komputer miały te same dane (tylko GitHub Pages) -->
@@ -508,7 +512,7 @@ let cwiczenia = null;   // [{id, nazwa, typ}]
 let wyniki = null;      // [{id, data, cwiczenie, typ, serie|km+czasSek, notatka, przyklad}]
 let plan = null;        // {pon: {tytul, pozycje:[{cwiczenie, cel}]}, ...}
 let serie = [{}];       // wiersze serii w formularzu
-let ileDni = 10;        // ile dni historii pokazać
+let hDzien = null, hMiesiac = null;   // historia: wybrany dzień i pokazany miesiąc kalendarza
 const szkic = {};       // to, co wpisujesz w planie, zanim zapiszesz
 
 // ===== Pomocnicze =====
@@ -831,6 +835,7 @@ $('f-wynik').addEventListener('submit', async e => {
       komunikat('Zapisano zmiany: ' + cw.nazwa + ', ' + opis(w), 'ok');
     } else {
       await db.collection('wyniki').add(w);
+      hDzien = data; hMiesiac = null;   // kalendarz historii pokaże dzień tego wyniku
       komunikat(rekord ? 'Nowy rekord! ' + cw.nazwa + ': ' + opis(w) : 'Zapisano: ' + cw.nazwa + ', ' + opis(w), rekord ? 'rekord' : 'ok');
       serie = [{}]; $('f-notatka').value = ''; renderPola(true);
     }
@@ -1046,36 +1051,79 @@ const przerysuj = new ResizeObserver(() => { cancelAnimationFrame(ramka); ramka 
 przerysuj.observe($('wykres'));
 przerysuj.observe($('treningi'));
 
-// ===== Historia =====
+// ===== Kalendarz (wspólny dla Historii i Moich treningów) =====
+// miesiac = "2026-10", dni = zbiór dat z treningiem, p = przedrostek atrybutów (np. "h" → data-h-dzien)
+function htmlKalendarza(miesiac, dni, wybrany, p) {
+  const [r, m] = miesiac.split('-').map(Number);
+  const pierwszy = new Date(r, m - 1, 1);
+  const przesuniecie = (pierwszy.getDay() + 6) % 7;      // ile pustych kratek przed 1. dniem (tydzień od poniedziałku)
+  const dniWMiesiacu = new Date(r, m, 0).getDate();
+  const dzis = dzisISO(), komorki = [];
+  for (let i = 0; i < przesuniecie; i++) komorki.push('<span></span>');
+  for (let d = 1; d <= dniWMiesiacu; d++) {
+    const iso = `${r}-${pad2(m)}-${pad2(d)}`, byl = dni.has(iso);
+    const klasy = ['dzien-kal', byl && 'byl', iso === wybrany && 'wybrany', iso === dzis && 'dzis'].filter(Boolean).join(' ');
+    komorki.push(byl
+      ? `<button type="button" class="${klasy}" data-${p}-dzien="${iso}" aria-pressed="${iso === wybrany}" aria-label="${ladnaData(iso)}">${d}</button>`
+      : `<span class="${klasy}">${d}</span>`);
+  }
+  const wTymMiesiacu = [...dni].filter(d => d.startsWith(miesiac)).length;
+  return `<div class="kal-gora">
+      <button type="button" class="x" data-${p}-mies="-1" aria-label="Poprzedni miesiąc">‹</button>
+      <strong>${pierwszy.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}</strong>
+      <button type="button" class="x" data-${p}-mies="1" aria-label="Następny miesiąc">›</button>
+    </div>
+    <div class="kal">${['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'].map(x => `<span class="kal-dn">${x}</span>`).join('')}${komorki.join('')}</div>
+    <p class="pusto" style="margin-top: 10px;">${wTymMiesiacu
+      ? `W tym miesiącu: ${wTymMiesiacu} ${odmiana(wTymMiesiacu, 'trening', 'treningi', 'treningów')}. Kliknij podświetlony dzień.`
+      : 'Brak treningów w tym miesiącu.'}</p>`;
+}
+// "2026-10" przesunięte o n miesięcy
+const przesunMiesiac = (miesiac, n) => { const [r, m] = miesiac.split('-').map(Number), d = new Date(r, m - 1 + n, 1); return d.getFullYear() + '-' + pad2(d.getMonth() + 1); };
+
+// ===== Historia: kalendarz → wszystko z wybranego dnia =====
 function renderHistoria() {
   const box = $('historia');
   if (!wyniki) return;
   $('przyklady').hidden = !wyniki.some(w => w.przyklad);
   if (!wyniki.length) {
-    box.innerHTML = '<p class="pusto">Brak treningów. Zapisz pierwszy wynik w formularzu powyżej — pojawi się tutaj, pogrupowany po dniach.</p>';
-    $('wiecej').hidden = true; return;
+    box.innerHTML = '<p class="pusto">Brak treningów. Zapisz pierwszy wynik — dzień treningu podświetli się w kalendarzu.</p>';
+    return;
   }
-  const pr = idRekordow(), dni = new Map();
-  for (const w of chronologicznie().reverse()) { if (!dni.has(w.data)) dni.set(w.data, []); dni.get(w.data).push(w); }
-  const klucze = [...dni.keys()];
-  box.innerHTML = klucze.slice(0, ileDni).map(d => `<div class="dzien"><h3>${ladnaData(d)}</h3>` +
-    dni.get(d).reverse().map(w => `<div class="wpis">
-      <span class="typ ${esc(w.typ)}"></span>
-      <div class="tresc">
-        <div class="nazwa">${esc(w.cwiczenie)}${pr.has(w.id) ? '<span class="znacznik pr">Rekord</span>' : ''}${w.przyklad ? '<span class="znacznik przyklad">przykład</span>' : ''}</div>
-        <div class="opis">${esc(opis(w))}</div>
-        ${w.notatka ? `<div class="notatka">${esc(w.notatka)}</div>` : ''}
-      </div>
-      <span class="wpis-akcje">
+  const pr = idRekordow(), ws = chronologicznie(), dni = new Set(ws.map(w => w.data));
+  if (!hDzien || !dni.has(hDzien)) { hDzien = ws[ws.length - 1].data; hMiesiac = null; }   // domyślnie ostatni trening
+  if (!hMiesiac) hMiesiac = hDzien.slice(0, 7);
+
+  // podsumowanie dnia: ile ćwiczeń, serii i objętość (kg × powtórzenia)
+  const tegoDnia = ws.filter(w => w.data === hDzien);
+  const serii = tegoDnia.reduce((a, w) => a + (w.typ === 'cardio' ? 1 : (w.serie || []).length), 0);
+  const objetosc = tegoDnia.filter(w => w.typ === 'ciezar').reduce((a, w) => a + w.serie.reduce((b, x) => b + x.kg * x.powt, 0), 0);
+  const ileCw = new Set(tegoDnia.map(w => w.cwiczenie)).size;
+  const wpisy = tegoDnia.map(w => `<div class="tabela-box">
+      <p class="h-tytul"><span class="typ ${esc(w.typ)}"></span>${esc(w.cwiczenie)}${pr.has(w.id) ? '<span class="znacznik pr">Rekord</span>' : ''}${w.przyklad ? '<span class="znacznik przyklad">przykład</span>' : ''}</p>
+      ${tabelaSerii(w)}
+      ${w.notatka ? `<p class="notatka">${esc(w.notatka)}</p>` : ''}
+      <p class="wpis-akcje" style="margin: 8px 0 0;">
         <button type="button" class="btn cichy maly" data-edytuj-wynik="${esc(w.id)}">Edytuj</button>
-        <button type="button" class="x" data-usun-wynik="${esc(w.id)}" aria-label="Usuń wpis">×</button>
-      </span>
-    </div>`).join('') + '</div>').join('');
-  $('wiecej').hidden = klucze.length <= ileDni;
+        <button type="button" class="x" data-usun-wynik="${esc(w.id)}" aria-label="Usuń wpis ${esc(w.cwiczenie)}">×</button></p>
+    </div>`).join('');
+
+  box.innerHTML = `<div class="siatka dwie">
+    <div>${htmlKalendarza(hMiesiac, dni, hDzien, 'h')}</div>
+    <div class="h-dzien">
+      <h3>${ladnaData(hDzien)}</h3>
+      <p class="pusto" style="margin-bottom: 12px;">${ileCw} ${odmiana(ileCw, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')} · ${serii} ${odmiana(serii, 'seria', 'serie', 'serii')}${objetosc ? ' · objętość ' + fmt(objetosc) + ' kg' : ''}</p>
+      ${wpisy}
+    </div></div>`;
 }
-$('wiecej').onclick = () => { ileDni += 10; renderHistoria(); };
 // Usuwanie w dwóch krokach: pierwsze kliknięcie pyta, drugie usuwa
 $('historia').addEventListener('click', async e => {
+  const k = e.target.closest('[data-h-dzien], [data-h-mies]');
+  if (k) {
+    if (k.dataset.hDzien) hDzien = k.dataset.hDzien;
+    else hMiesiac = przesunMiesiac(hMiesiac, Number(k.dataset.hMies));
+    return renderHistoria();
+  }
   const ed = e.target.closest('[data-edytuj-wynik]');
   if (ed) return edytujWynik(ed.dataset.edytujWynik);
   const b = e.target.closest('[data-usun-wynik]'); if (!b || !db) return;
@@ -1301,20 +1349,6 @@ function renderTreningi() {
   const ws = grupy.get(mtCw), dniTreningu = new Set(ws.map(w => w.data));
   if (!mtDzien || !dniTreningu.has(mtDzien)) mtDzien = ws[ws.length - 1].data;   // domyślnie ostatni trening
   if (!mtMiesiac) mtMiesiac = mtDzien.slice(0, 7);
-  const [r, m] = mtMiesiac.split('-').map(Number);
-  const pierwszy = new Date(r, m - 1, 1);
-  const przesuniecie = (pierwszy.getDay() + 6) % 7;      // ile pustych kratek przed 1. dniem (tydzień od poniedziałku)
-  const dniWMiesiacu = new Date(r, m, 0).getDate();
-  const dzis = dzisISO(), komorki = [];
-  for (let i = 0; i < przesuniecie; i++) komorki.push('<span></span>');
-  for (let d = 1; d <= dniWMiesiacu; d++) {
-    const iso = `${r}-${pad2(m)}-${pad2(d)}`, byl = dniTreningu.has(iso);
-    const klasy = ['dzien-kal', byl && 'byl', iso === mtDzien && 'wybrany', iso === dzis && 'dzis'].filter(Boolean).join(' ');
-    komorki.push(byl
-      ? `<button type="button" class="${klasy}" data-mt-dzien="${iso}" aria-pressed="${iso === mtDzien}" aria-label="${ladnaData(iso)}">${d}</button>`
-      : `<span class="${klasy}">${d}</span>`);
-  }
-  const wTymMiesiacu = [...dniTreningu].filter(d => d.startsWith(mtMiesiac)).length;
 
   // KROK 3: serie z wybranego dnia
   const tegoDnia = ws.filter(w => w.data === mtDzien);
@@ -1333,15 +1367,7 @@ function renderTreningi() {
         <p class="pusto" style="margin: -4px 0 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           ${cwPoNazwie(mtCw) ? `<button type="button" class="btn cichy maly" data-mt-edytuj="${esc(cwPoNazwie(mtCw).id)}">Edytuj</button>` : ''}
           <button type="button" class="btn cichy maly" data-mt-usun="${esc(mtCw)}">Usuń ćwiczenie</button></p>
-        <div class="kal-gora">
-          <button type="button" class="x" data-mt-mies="-1" aria-label="Poprzedni miesiąc">‹</button>
-          <strong>${pierwszy.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}</strong>
-          <button type="button" class="x" data-mt-mies="1" aria-label="Następny miesiąc">›</button>
-        </div>
-        <div class="kal">${['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'].map(x => `<span class="kal-dn">${x}</span>`).join('')}${komorki.join('')}</div>
-        <p class="pusto" style="margin-top: 10px;">${wTymMiesiacu
-          ? `W tym miesiącu: ${wTymMiesiacu} ${odmiana(wTymMiesiacu, 'trening', 'treningi', 'treningów')}. Kliknij podświetlony dzień.`
-          : 'Brak treningów w tym miesiącu.'}</p>
+        ${htmlKalendarza(mtMiesiac, dniTreningu, mtDzien, 'mt')}
       </section>
       <section class="panel">
         <h2>${ladnaData(mtDzien)}</h2>
@@ -1366,8 +1392,7 @@ $('treningi').addEventListener('click', e => {
   if (t.dataset.mtCw) { mtCw = t.dataset.mtCw; mtDzien = null; mtMiesiac = null; }
   else if (t.dataset.mtWstecz) { mtCw = null; }
   else if (t.dataset.mtMies) {
-    const [r, m] = mtMiesiac.split('-').map(Number), d = new Date(r, m - 1 + Number(t.dataset.mtMies), 1);
-    mtMiesiac = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+    mtMiesiac = przesunMiesiac(mtMiesiac, Number(t.dataset.mtMies));
   }
   else if (t.dataset.mtDzien) { mtDzien = t.dataset.mtDzien; }
   else return;
@@ -1604,7 +1629,7 @@ $('trening').addEventListener('click', e => {
   if (d.trGrupa !== undefined) return zacznijTrening(d.trGrupa, (cwiczeniaWgTreningu().find(([t]) => t === d.trGrupa)?.[1] || []).map(c => c.nazwa));
   if (d.trPusty !== undefined) return zacznijTrening('Własny trening', []);
   if (d.trZamknij !== undefined) { trPodsumowanie = null; return renderTrening(); }
-  if (d.trHistoria !== undefined) { pokazZakladke('wyniki'); return $('historia').scrollIntoView({ behavior: 'smooth' }); }
+  if (d.trHistoria !== undefined) { hDzien = dzisISO(); hMiesiac = null; renderHistoria(); pokazZakladke('wyniki'); return $('historia').scrollIntoView({ behavior: 'smooth' }); }
   if (!sesja) return;
   // --- trening w trakcie ---
   if (d.trOk) {
