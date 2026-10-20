@@ -76,6 +76,27 @@ header h1 {
 }
 header .data { color: var(--muted); margin: 6px 0 0; }
 
+/* Nagłówek: tytuł po lewej, ikonka konta po prawej */
+.naglowek { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.konto-box { position: relative; flex: none; }
+.konto-ikona {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; position: relative;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.konto-ikona:hover, .konto-ikona[aria-expanded="true"] { border-color: var(--accent); }
+/* zielona kropka = zalogowany, dane synchronizują się */
+.konto-ikona.zalogowany::after { content: ""; position: absolute; right: 1px; bottom: 1px; width: 11px; height: 11px; border-radius: 50%; background: var(--t-cardio); border: 2px solid var(--surface); }
+.konto-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; max-width: calc(100vw - 32px);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
+}
+.konto-kto { margin: 0; padding: 8px 10px; color: var(--muted); font-size: .85rem; border-bottom: 1px solid var(--line); margin-bottom: 4px; overflow-wrap: anywhere; }
+.konto-menu button { display: block; width: 100%; text-align: left; font: inherit; font-weight: 600; background: transparent; border: 0; color: var(--ink); padding: 10px; border-radius: 6px; cursor: pointer; }
+.konto-menu button:hover { background: var(--bg); }
+.konto-email { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.konto-email small { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px; }
+
 /* Zakładki (dwa "okienka") */
 .zakladki {
   position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
@@ -357,9 +378,22 @@ body.z-przerwa .app { padding-bottom: 110px; }
 </style>
 
 <div class="app">
-  <header>
-    <h1>Dziennik treningowy</h1>
-    <p class="data" id="dzisiejsza-data"></p>
+  <header class="naglowek">
+    <div>
+      <h1>Dziennik treningowy</h1>
+      <p class="data" id="dzisiejsza-data"></p>
+    </div>
+    <!-- Ikonka konta: po kliknięciu rozwija się menu z "Moje konto" -->
+    <div class="konto-box">
+      <button type="button" class="konto-ikona" id="konto-przycisk" aria-label="Konto" aria-haspopup="menu" aria-expanded="false" aria-controls="konto-menu">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+      </button>
+      <div class="konto-menu" id="konto-menu" role="menu" hidden>
+        <p class="konto-kto" id="konto-kto"></p>
+        <button type="button" role="menuitem" id="konto-otworz">Moje konto</button>
+      </div>
+    </div>
   </header>
 
   <nav class="zakladki" role="tablist">
@@ -433,6 +467,31 @@ body.z-przerwa .app { padding-bottom: 110px; }
       <div id="historia"><p class="pusto">Ładowanie…</p></div>
     </section>
 
+  </main>
+
+  <!-- OKIENKO 2: MOJE TRENINGI (lista ćwiczeń → kalendarz → serie) -->
+  <main id="v-treningi" role="tabpanel" aria-labelledby="tab-treningi" hidden>
+    <details class="panel nowe-panel" id="m-panel" style="margin-bottom: 12px;">
+      <summary id="m-panel-tytul">+ Nowe ćwiczenie</summary>
+      <div id="m-formularz" class="form-cw"></div>
+    </details>
+    <div id="treningi"><p class="pusto">Ładowanie…</p></div>
+  </main>
+
+  <!-- OKIENKO 3: PLAN TRENINGOWY -->
+  <main id="v-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
+    <div id="plan" class="plan"><p class="pusto">Ładowanie…</p></div>
+  </main>
+
+  <!-- MOJE KONTO: otwierane z ikonki w nagłówku (nie jest zakładką) -->
+  <main id="v-konto" hidden>
+    <button type="button" class="btn cichy maly" id="konto-wstecz">‹ Wróć</button>
+    <section class="panel" style="margin-top: 12px;">
+      <h2>Moje konto</h2>
+      <p id="konto-email" class="konto-email"></p>
+      <div class="rekordy" id="konto-staty" style="margin-top: 14px;"></div>
+    </section>
+
     <!-- Synchronizacja: logowanie do Supabase, żeby telefon i komputer miały te same dane (tylko GitHub Pages) -->
     <section class="panel" id="synchro" style="margin-top: 16px;" hidden>
       <h2>Synchronizacja <small>telefon ↔ komputer</small></h2>
@@ -469,20 +528,6 @@ body.z-przerwa .app { padding-bottom: 110px; }
         <button class="btn cichy" type="button" id="kopia-anuluj" hidden>Anuluj</button>
       </div>
     </section>
-  </main>
-
-  <!-- OKIENKO 2: MOJE TRENINGI (lista ćwiczeń → kalendarz → serie) -->
-  <main id="v-treningi" role="tabpanel" aria-labelledby="tab-treningi" hidden>
-    <details class="panel nowe-panel" id="m-panel" style="margin-bottom: 12px;">
-      <summary id="m-panel-tytul">+ Nowe ćwiczenie</summary>
-      <div id="m-formularz" class="form-cw"></div>
-    </details>
-    <div id="treningi"><p class="pusto">Ładowanie…</p></div>
-  </main>
-
-  <!-- OKIENKO 3: PLAN TRENINGOWY -->
-  <main id="v-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
-    <div id="plan" class="plan"><p class="pusto">Ładowanie…</p></div>
   </main>
 </div>
 
@@ -577,7 +622,17 @@ function idRekordow() {
 
 // ===== Zakładki =====
 const ZAKLADKI = ['trening', 'wyniki', 'treningi', 'plan'];
+let poprzedniaZakladka = 'wyniki';   // dokąd wraca "‹ Wróć" z Mojego konta
 function pokazZakladke(nazwa) {
+  if (nazwa === 'konto') {
+    const teraz = ZAKLADKI.find(z => !$('v-' + z).hidden);
+    if (teraz) poprzedniaZakladka = teraz;
+    for (const z of ZAKLADKI) { $('tab-' + z).setAttribute('aria-selected', 'false'); $('v-' + z).hidden = true; }
+    $('v-konto').hidden = false;
+    renderKonto(); window.scrollTo({ top: 0 });
+    return;
+  }
+  $('v-konto').hidden = true;
   if (!ZAKLADKI.includes(nazwa)) nazwa = 'wyniki';
   // pokazujemy jedną zakładkę, resztę chowamy
   for (const z of ZAKLADKI) {
@@ -1731,10 +1786,44 @@ $('przerwa').addEventListener('click', e => {
   zapiszSesje(); tik();
 });
 
+// ===== Moje konto =====
+function pokazMenuKonta(pokaz) {
+  $('konto-menu').hidden = !pokaz;
+  $('konto-przycisk').setAttribute('aria-expanded', String(pokaz));
+}
+$('konto-przycisk').onclick = e => { e.stopPropagation(); pokazMenuKonta($('konto-menu').hidden); };
+$('konto-otworz').onclick = () => { pokazMenuKonta(false); pokazZakladke('konto'); };
+$('konto-wstecz').onclick = () => pokazZakladke(poprzedniaZakladka);
+// klik poza menu albo Escape zamyka menu
+document.addEventListener('click', e => { if (!$('konto-menu').hidden && !e.target.closest('.konto-box')) pokazMenuKonta(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('konto-menu').hidden) { pokazMenuKonta(false); $('konto-przycisk').focus(); } });
+
+function renderKonto() {
+  // kto jest zalogowany — w menu i na ekranie konta
+  const email = trybChmura ? uzytkownik?.email : null;
+  $('konto-przycisk').classList.toggle('zalogowany', !!email);
+  $('konto-przycisk').setAttribute('aria-label', email ? 'Konto: ' + email : 'Konto (niezalogowany)');
+  $('konto-kto').textContent = email ? email : trybLokalny ? 'Niezalogowany' : 'Konto claude.ai';
+  $('konto-email').innerHTML = email
+    ? `${esc(email)}<small>Zalogowano — dane synchronizują się między urządzeniami</small>`
+    : trybLokalny ? 'Niezalogowany<small>Dane są zapisane tylko w tej przeglądarce. Zaloguj się poniżej, żeby mieć je na każdym urządzeniu.</small>'
+    : 'Konto claude.ai<small>Dane są zapisane na Twoim koncie claude.ai</small>';
+  // statystyki: trening = dzień, w którym coś zapisałeś
+  const ws = wyniki || [], dni = new Set(ws.map(w => w.data));
+  const miesiac = dzisISO().slice(0, 7), wTymMiesiacu = [...dni].filter(d => d.startsWith(miesiac)).length;
+  const pierwszy = [...dni].sort()[0];
+  const kafelek = (wart, nazwa, kiedy) => `<div class="rekord"><span class="nazwa"><span>${nazwa}</span></span><span class="wart">${wart}</span>${kiedy ? `<span class="kiedy">${kiedy}</span>` : ''}</div>`;
+  $('konto-staty').innerHTML =
+    kafelek(dni.size, 'Wykonane treningi', pierwszy ? 'od ' + naDate(pierwszy).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) : 'jeszcze żadnego') +
+    kafelek(wTymMiesiacu, 'W tym miesiącu', naDate(dzisISO()).toLocaleDateString('pl-PL', { month: 'long' })) +
+    kafelek(ws.length, 'Zapisane wyniki', '') +
+    kafelek((cwiczenia || []).length, 'Ćwiczenia', '');
+}
+
 // ===== Odśwież wszystko =====
 function renderWszystko() {
   if (cwiczenia) { renderSelecty(); if (!$('f-pola').children.length) renderPola(); }
-  renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderKopia(); renderSynchro();
+  renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderKopia(); renderSynchro(); renderKonto();
   // dane z chmury przyszły w trakcie wpisywania serii? nie przerysowujemy, żeby nie zgubić kursora
   const a = document.activeElement;
   if (!(a && $('trening').contains(a) && /INPUT|SELECT/.test(a.tagName))) renderTrening();
