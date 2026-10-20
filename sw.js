@@ -1,7 +1,7 @@
 // Service worker — mały program działający w tle telefonu. Zapamiętuje pliki aplikacji,
 // żeby dziennik otwierał się także bez internetu (np. na siłowni bez zasięgu).
 // Po zmianie listy plików lub sposobu działania podbij WERSJA — telefon pobierze nową wersję.
-const WERSJA = 'dziennik-v1';
+const WERSJA = 'dziennik-v2';
 const PLIKI = ['./', 'manifest.json', 'ikony/apple-touch-icon.png', 'ikony/ikona-192.png', 'ikony/ikona-512.png',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js'];
 
@@ -27,7 +27,8 @@ self.addEventListener('fetch', e => {
     e.respondWith((async () => {
       const zPamieci = () => caches.match('./', { cacheName: WERSJA });
       try {
-        const odp = await Promise.race([fetch(req), new Promise((_, nie) => setTimeout(nie, 3000))]);
+        // cache: 'no-store' = nie bierz kopii z pamięci przeglądarki (GitHub każe ją trzymać 10 minut)
+        const odp = await Promise.race([fetch(req, { cache: 'no-store' }), new Promise((_, nie) => setTimeout(nie, 3000))]);
         if (odp.ok) { const c = await caches.open(WERSJA); await c.put('./', odp.clone()); }
         return odp;
       } catch { return (await zPamieci()) || Response.error(); }

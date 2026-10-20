@@ -2216,5 +2216,5 @@ if (sesja) pokazZakladke('trening');   // trening w trakcie → wracamy prosto d
   db.collection('plan').onSnapshot(s => { plan = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderWszystko(); }, blad);
 })();
 </script>
-<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+<script>if ('serviceWorker' in navigator) { const byl = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); navigator.serviceWorker.addEventListener('controllerchange', () => { if (byl) location.reload(); }); }</script>
 </body></html>
