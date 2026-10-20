@@ -3,6 +3,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Trening">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="ikony/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="ikony/ikona-192.png">
+<meta name="theme-color" content="#16201C">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head><body>
 <title>Dziennik Treningowy</title>
@@ -203,6 +207,7 @@ details.nowe .rzad { margin-top: 10px; }
 .dodaj-pozycje { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: end; }
 @media (max-width: 420px) { .dodaj-pozycje { grid-template-columns: 1fr 1fr; } .dodaj-pozycje .btn { grid-column: 1 / -1; } }
 .baner { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--danger); color: var(--danger); margin-bottom: 14px; }
+.baner.spokojny { border-color: var(--line); color: var(--muted); background: var(--surface); }
 .rekord .wart { overflow-wrap: anywhere; }
 @media (max-width: 480px) { .zakladki button { font-size: 1rem; padding: 8px 6px; letter-spacing: .02em; } }
 
@@ -1377,8 +1382,10 @@ const SUPABASE_URL = 'https://fwutxvkrahwfbdsnqwjp.supabase.co';     // np. http
 const SUPABASE_KLUCZ = 'sb_publishable_gDyrZ1VGTsyGWV4onk3oig_CoWfCIqo';   // Project Settings → API Keys → publishable (lub anon)
 const KLUCZ_CHMURA = KLUCZ + '-chmura';     // ostatnio pobrane dane z chmury — na wypadek braku internetu
 const KLUCZ_WYSLANE = KLUCZ + '-wyslane';   // które wpisy z tego urządzenia już dodaliśmy do chmury
+const KLUCZ_KOLEJKA = KLUCZ + '-kolejka';   // zmiany zrobione bez internetu, czekające na wysłanie
 let sb = null, uzytkownik = null, trybChmura = false;
-const pokazBaner = t => { const b = $('baner'); b.hidden = false; b.textContent = t; };
+// spokojny = szary pasek informacyjny (np. brak internetu), zwykły = czerwony błąd
+const pokazBaner = (t, spokojny) => { const b = $('baner'); b.hidden = false; b.textContent = t; b.classList.toggle('spokojny', !!spokojny); };
 const ukryjBaner = () => { $('baner').hidden = true; };
 
 const wczytajSkrypt = src => new Promise((ok, nie) => {
@@ -1393,96 +1400,140 @@ async function polaczSupabase() {
   try {
     if (!window.supabase) await wczytajSkrypt('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js');
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KLUCZ);
-    const { data } = await sb.auth.getSession();
-    return data.session?.user ?? null;
   } catch { sb = null; return null; }
+  try {
+    const { data } = await Promise.race([sb.auth.getSession(), new Promise((_, nie) => setTimeout(nie, 5000))]);
+    if (data.session?.user) return data.session.user;
+  } catch {}
+  // Bez internetu sesja może się nie odświeżyć — ale skoro jest zapisana, dalej pracujemy na danych z chmury
+  return zapisanyUzytkownik();
+}
+function zapisanyUzytkownik() {
+  try {
+    const k = Object.keys(localStorage).find(k => /^sb-.*-auth-token$/.test(k));
+    return k ? JSON.parse(localStorage.getItem(k))?.user ?? null : null;
+  } catch { return null; }
 }
 
 // Te same funkcje co lokalnaBaza(), ale dane leżą w tabeli "dokumenty" w Supabase.
-// Zmiany pokazujemy od razu (z pamięci), a w tle wysyłamy do chmury.
+// Każda zmiana od razu trafia na ekran i do KOLEJKI w pamięci telefonu, a kolejka wysyła się do chmury.
+// Bez internetu zmiany czekają w kolejce (nawet po zamknięciu aplikacji) i wysyłają się same, gdy wróci zasięg.
 function chmuraBaza(user) {
   let dane = pusteDane();
+  let kolejka = [];   // [{k: kolekcja, id, dane}] — dane = null oznacza usunięcie
   try { const z = JSON.parse(localStorage.getItem(KLUCZ_CHMURA) || 'null'); if (z?.uid === user.id) dane = { ...dane, ...z.dane }; } catch {}
+  try { const z = JSON.parse(localStorage.getItem(KLUCZ_KOLEJKA) || 'null'); if (z?.uid === user.id) kolejka = z.zmiany || []; } catch {}
   const sluchacze = [];
   const kopia = o => JSON.parse(JSON.stringify(o));
   const powiadom = () => setTimeout(() => {
     for (const [k, fn] of sluchacze)
       fn({ docs: Object.entries(dane[k] || {}).map(([id, d]) => ({ id, exists: true, data: () => kopia(d) })) });
   }, 0);
-  const zapamietaj = () => { try { localStorage.setItem(KLUCZ_CHMURA, JSON.stringify({ uid: user.id, dane })); } catch {} };
+  const zapamietaj = () => {
+    try {
+      localStorage.setItem(KLUCZ_CHMURA, JSON.stringify({ uid: user.id, dane }));
+      localStorage.setItem(KLUCZ_KOLEJKA, JSON.stringify({ uid: user.id, zmiany: kolejka }));
+    } catch {}
+  };
   const zmieniono = () => { zapamietaj(); powiadom(); };
-  const wiersz = (k, id) => ({ user_id: user.id, kolekcja: k, id, dane: dane[k][id] });
   const sprawdz = ({ error }) => { if (error) throw error; };
+  // nakłada niewysłane zmiany na dane pobrane z chmury — żeby nie zniknęły z ekranu
+  const naloz = d => { for (const z of kolejka) { if (z.dane === null) delete d[z.k][z.id]; else d[z.k][z.id] = z.dane; } return d; };
+
+  // Pasek u góry: informacja o braku internetu i liczbie zmian czekających na wysłanie
+  let polaczono = true;
+  function stan() {
+    const n = kolejka.length;
+    if (!polaczono && n) pokazBaner(`Brak internetu — ${n} ${odmiana(n, 'zmiana czeka', 'zmiany czekają', 'zmian czeka')} na wysłanie. Wyślą się same, gdy wróci zasięg.`, true);
+    else if (!polaczono) pokazBaner('Brak internetu — pokazuję ostatnio pobrane dane. Możesz normalnie dodawać wyniki.', true);
+    else ukryjBaner();
+  }
+
+  // Wysyłanie kolejki: zapisy idą paczkami (do 500 naraz), usunięcia pojedynczo, zawsze po kolei
+  let wysylam = false, wyslano = 0;
+  async function wyslijKolejke() {
+    if (wysylam) return;
+    wysylam = true;
+    try {
+      while (kolejka.length) {
+        const paczka = [];
+        for (const z of kolejka) { if (z.dane === null || paczka.length >= 500) break; paczka.push(z); }
+        if (paczka.length) sprawdz(await sb.from('dokumenty').upsert(paczka.map(z => ({ user_id: user.id, kolekcja: z.k, id: z.id, dane: z.dane }))));
+        else { paczka.push(kolejka[0]); sprawdz(await sb.from('dokumenty').delete().match({ user_id: user.id, kolekcja: paczka[0].k, id: paczka[0].id })); }
+        // usuwamy z kolejki to, co doszło (jeśli w międzyczasie zmieniłeś ten sam wpis, nowsza wersja zostaje)
+        kolejka = kolejka.filter(z => !paczka.includes(z)); wyslano++;
+        zapamietaj();
+      }
+      polaczono = true;
+    } catch { polaczono = false; }
+    finally { wysylam = false; stan(); }
+  }
+  // Zapisuje zmianę na ekranie i w kolejce; starsza niewysłana zmiana tego samego wpisu jest zastępowana
+  function zmien(k, id, d, wyslij = true) {
+    if (d === null) delete dane[k][id]; else dane[k][id] = d;
+    kolejka = kolejka.filter(z => !(z.k === k && z.id === id));
+    kolejka.push({ k, id, dane: d });
+    zmieniono();
+    if (wyslij) wyslijKolejke();
+  }
 
   // Pobiera wszystko z chmury (po 1000 wierszy naraz) i podmienia dane w pamięci
-  let zapisyWToku = 0, bladPolaczenia = false, pominieto = false;
   async function pobierz() {
-    const nowe = pusteDane();
+    const przed = wyslano, nowe = pusteDane();
     for (let od = 0; ; od += 1000) {
       const { data, error } = await sb.from('dokumenty').select('kolekcja,id,dane').order('kolekcja').order('id').range(od, od + 999);
       if (error) throw error;
       for (const r of data) if (nowe[r.kolekcja]) nowe[r.kolekcja][r.id] = r.dane;
       if (data.length < 1000) break;
     }
-    if (zapisyWToku) { pominieto = true; return; }   // coś się jeszcze wysyła — pobierzemy ponownie po zapisie
-    dane = nowe; zmieniono();
-    if (bladPolaczenia) { bladPolaczenia = false; ukryjBaner(); }
+    dane = naloz(nowe); zmieniono();
+    polaczono = true; stan();
+    if (kolejka.length) wyslijKolejke();
+    if (wyslano !== przed) odswiez();          // w trakcie pobierania coś się wysłało — pobierz jeszcze raz
   }
   let czasomierz = null;
   const odswiez = () => {
     clearTimeout(czasomierz);
-    czasomierz = setTimeout(() => pobierz().catch(() => {
-      bladPolaczenia = true;
-      pokazBaner('Brak połączenia z chmurą — pokazuję ostatnio pobrane dane. Nowe wpisy mogą się nie zapisać.');
-    }), 300);
+    czasomierz = setTimeout(() => pobierz().catch(() => { polaczono = false; stan(); }), 300);
   };
-  // Wysyłka jednej zmiany; przy błędzie pokazujemy komunikat i wracamy do stanu z chmury
-  async function wyslij(zapytanie) {
-    zapisyWToku++;
-    try { sprawdz(await zapytanie); }
-    catch (e) { bladPolaczenia = true; pokazBaner('Nie udało się zapisać w chmurze — sprawdź internet i spróbuj jeszcze raz.'); throw e; }
-    finally { zapisyWToku--; if (!zapisyWToku && (bladPolaczenia || pominieto)) { pominieto = false; odswiez(); } }
-  }
-  const dokument = (k, id) => ({
-    id,
-    set: async d => { dane[k][id] = kopia(d); zmieniono(); await wyslij(sb.from('dokumenty').upsert(wiersz(k, id))); },
-    update: async d => {
-      if (!dane[k][id]) throw { code: 'invalid_argument' };
-      dane[k][id] = { ...dane[k][id], ...kopia(d) }; zmieniono();
-      await wyslij(sb.from('dokumenty').upsert(wiersz(k, id)));
-    },
-    delete: async () => { delete dane[k][id]; zmieniono(); await wyslij(sb.from('dokumenty').delete().match({ user_id: user.id, kolekcja: k, id })); },
-  });
-  const noweId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  // Wiele wierszy naraz (paczki po 500, żeby nie wysyłać jednego ogromnego zapytania)
-  async function wyslijWiersze(wiersze) {
-    for (let i = 0; i < wiersze.length; i += 500) await wyslij(sb.from('dokumenty').upsert(wiersze.slice(i, i + 500)));
-  }
 
   // Inne urządzenie coś zmieniło → Supabase daje znać (realtime) → pobieramy świeże dane.
-  // Dodatkowo odświeżamy po powrocie do karty i po odzyskaniu internetu (telefon często usypia stronę).
+  // Dodatkowo odświeżamy po powrocie do aplikacji, po odzyskaniu internetu i co 30 s, gdy coś czeka w kolejce.
   sb.channel('dokumenty').on('postgres_changes', { event: '*', schema: 'public', table: 'dokumenty' }, odswiez).subscribe();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) odswiez(); });
   window.addEventListener('online', odswiez);
+  setInterval(() => { if (kolejka.length) wyslijKolejke(); }, 30000);
   odswiez();
+
+  const noweId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const dokument = (k, id) => ({
+    id,
+    set: async d => zmien(k, id, kopia(d)),
+    update: async d => {
+      if (!dane[k][id]) throw { code: 'invalid_argument' };
+      zmien(k, id, { ...dane[k][id], ...kopia(d) });
+    },
+    delete: async () => zmien(k, id, null),
+  });
 
   return {
     dziala: () => true,
     wszystko: () => kopia(dane),
-    // wczytanie kopii z pliku: kasujemy wszystko w chmurze i wysyłamy dane z kopii
+    // wczytanie kopii z pliku: kasujemy wszystko w chmurze i wysyłamy dane z kopii (wymaga internetu)
     zastap: async nowe => {
-      dane = { ...pusteDane(), ...kopia(nowe) }; zmieniono();
-      await wyslij(sb.from('dokumenty').delete().eq('user_id', user.id));
-      await wyslijWiersze(KOLEKCJE.flatMap(k => Object.keys(dane[k]).map(id => wiersz(k, id))));
+      const d = { ...pusteDane(), ...kopia(nowe) };
+      const wiersze = KOLEKCJE.flatMap(k => Object.entries(d[k]).map(([id, x]) => ({ user_id: user.id, kolekcja: k, id, dane: x })));
+      sprawdz(await sb.from('dokumenty').delete().eq('user_id', user.id));
+      for (let i = 0; i < wiersze.length; i += 500) sprawdz(await sb.from('dokumenty').upsert(wiersze.slice(i, i + 500)));
+      kolejka = []; dane = d; zmieniono();
     },
     // dodaje do chmury wpisy, których tam jeszcze nie ma (niczego nie nadpisuje); zwraca ich liczbę
     dodajBrakujace: async lokalne => {
-      const nowe = [];
+      let ile = 0;
       for (const k of KOLEKCJE) for (const [id, d] of Object.entries(lokalne[k] || {}))
-        if (!dane[k][id]) { dane[k][id] = kopia(d); nowe.push(wiersz(k, id)); }
-      zmieniono();
-      await wyslijWiersze(nowe);
-      return nowe.length;
+        if (!dane[k][id]) { zmien(k, id, kopia(d), false); ile++; }
+      await wyslijKolejke();
+      return ile;
     },
     collection: k => ({
       doc: id => dokument(k, id || noweId()),
@@ -1655,4 +1706,5 @@ if (ZAKLADKI.includes(location.hash.slice(1))) pokazZakladke(location.hash.slice
   db.collection('plan').onSnapshot(s => { plan = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderWszystko(); }, blad);
 })();
 </script>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
 </body></html>
