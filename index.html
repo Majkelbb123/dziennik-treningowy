@@ -11,6 +11,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
+/* "hidden" ma zawsze ukrywać — nawet gdy inny styl ustawia display (np. form { display: grid }) */
+[hidden] { display: none !important; }
 /* Układ: wąska kolumna jak notes treningowy, zakładki u góry; kolory typów ćwiczeń = kolory talerzy olimpijskich */
 :root {
   --bg: #EDF0EE;
@@ -375,9 +377,30 @@ details.trening .cw-wiersz { background: var(--bg); }
       <p style="margin: 14px 0 0;"><button class="btn cichy maly" type="button" id="wiecej" hidden>Pokaż starsze</button></p>
     </section>
 
-    <!-- Kopia zapasowa: widoczna tylko w wersji z zapisem w przeglądarce (GitHub Pages) -->
+    <!-- Synchronizacja: logowanie do Supabase, żeby telefon i komputer miały te same dane (tylko GitHub Pages) -->
+    <section class="panel" id="synchro" style="margin-top: 16px;" hidden>
+      <h2>Synchronizacja <small>telefon ↔ komputer</small></h2>
+      <p class="pusto" id="synchro-info"></p>
+      <form id="synchro-form" style="margin-top: 12px;" hidden>
+        <div style="display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <label>E-mail <input type="email" id="s-email" autocomplete="username" required></label>
+          <label>Hasło <input type="password" id="s-haslo" autocomplete="current-password" minlength="6" required></label>
+        </div>
+        <div class="przyciski">
+          <button class="btn" type="submit" id="s-zaloguj">Zaloguj</button>
+          <button class="btn cichy" type="button" id="s-rejestracja">Załóż konto</button>
+        </div>
+      </form>
+      <div class="przyciski" id="synchro-zalogowany" style="margin-top: 12px;" hidden>
+        <button class="btn" type="button" id="s-polacz" hidden>Dodaj dane z tego urządzenia do chmury</button>
+        <button class="btn cichy" type="button" id="s-wyloguj">Wyloguj</button>
+      </div>
+      <p class="komunikat" id="synchro-kom" role="status" style="margin-top: 10px;"></p>
+    </section>
+
+    <!-- Kopia zapasowa: widoczna tylko w wersji z GitHub Pages -->
     <section class="panel" id="kopia" style="margin-top: 16px;" hidden>
-      <h2>Kopia zapasowa <small>dane są zapisane tylko w tej przeglądarce</small></h2>
+      <h2>Kopia zapasowa <small id="kopia-pod">dane są zapisane tylko w tej przeglądarce</small></h2>
       <p class="pusto" id="kopia-info"></p>
       <div class="przyciski" style="margin-top: 12px;">
         <button class="btn" type="button" id="kopia-zapisz">Zapisz kopię do pliku</button>
@@ -1293,7 +1316,7 @@ $('treningi').addEventListener('click', e => {
 // ===== Odśwież wszystko =====
 function renderWszystko() {
   if (cwiczenia) { renderSelecty(); if (!$('f-pola').children.length) renderPola(); }
-  renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderKopia();
+  renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderKopia(); renderSynchro();
 }
 
 // ===== Zapis w pamięci przeglądarki (wersja na GitHub Pages) =====
@@ -1346,6 +1369,197 @@ function lokalnaBaza() {
   };
 }
 
+// ===== Synchronizacja przez Supabase (telefon ↔ komputer) =====
+// Supabase to darmowa baza danych w internecie. Po zalogowaniu wyniki trafiają do niej, a każde
+// urządzenie zalogowane na to samo konto widzi je od razu. Klucz "publishable" może być publiczny:
+// danych pilnuje logowanie i reguła w bazie (RLS) — każde konto widzi tylko swoje wiersze.
+const SUPABASE_URL = 'https://fwutxvkrahwfbdsnqwjp.supabase.co';     // np. https://abcdefgh.supabase.co
+const SUPABASE_KLUCZ = 'sb_publishable_gDyrZ1VGTsyGWV4onk3oig_CoWfCIqo';   // Project Settings → API Keys → publishable (lub anon)
+const KLUCZ_CHMURA = KLUCZ + '-chmura';     // ostatnio pobrane dane z chmury — na wypadek braku internetu
+const KLUCZ_WYSLANE = KLUCZ + '-wyslane';   // które wpisy z tego urządzenia już dodaliśmy do chmury
+let sb = null, uzytkownik = null, trybChmura = false;
+const pokazBaner = t => { const b = $('baner'); b.hidden = false; b.textContent = t; };
+const ukryjBaner = () => { $('baner').hidden = true; };
+
+const wczytajSkrypt = src => new Promise((ok, nie) => {
+  const s = document.createElement('script');
+  s.src = src; s.onload = ok; s.onerror = nie;
+  setTimeout(nie, 8000);                       // słaby zasięg — nie czekamy w nieskończoność
+  document.head.appendChild(s);
+});
+// Ładuje bibliotekę Supabase i sprawdza, czy ktoś jest już zalogowany (sesja leży w przeglądarce)
+async function polaczSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_KLUCZ) return null;
+  try {
+    if (!window.supabase) await wczytajSkrypt('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js');
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KLUCZ);
+    const { data } = await sb.auth.getSession();
+    return data.session?.user ?? null;
+  } catch { sb = null; return null; }
+}
+
+// Te same funkcje co lokalnaBaza(), ale dane leżą w tabeli "dokumenty" w Supabase.
+// Zmiany pokazujemy od razu (z pamięci), a w tle wysyłamy do chmury.
+function chmuraBaza(user) {
+  let dane = pusteDane();
+  try { const z = JSON.parse(localStorage.getItem(KLUCZ_CHMURA) || 'null'); if (z?.uid === user.id) dane = { ...dane, ...z.dane }; } catch {}
+  const sluchacze = [];
+  const kopia = o => JSON.parse(JSON.stringify(o));
+  const powiadom = () => setTimeout(() => {
+    for (const [k, fn] of sluchacze)
+      fn({ docs: Object.entries(dane[k] || {}).map(([id, d]) => ({ id, exists: true, data: () => kopia(d) })) });
+  }, 0);
+  const zapamietaj = () => { try { localStorage.setItem(KLUCZ_CHMURA, JSON.stringify({ uid: user.id, dane })); } catch {} };
+  const zmieniono = () => { zapamietaj(); powiadom(); };
+  const wiersz = (k, id) => ({ user_id: user.id, kolekcja: k, id, dane: dane[k][id] });
+  const sprawdz = ({ error }) => { if (error) throw error; };
+
+  // Pobiera wszystko z chmury (po 1000 wierszy naraz) i podmienia dane w pamięci
+  let zapisyWToku = 0, bladPolaczenia = false, pominieto = false;
+  async function pobierz() {
+    const nowe = pusteDane();
+    for (let od = 0; ; od += 1000) {
+      const { data, error } = await sb.from('dokumenty').select('kolekcja,id,dane').order('kolekcja').order('id').range(od, od + 999);
+      if (error) throw error;
+      for (const r of data) if (nowe[r.kolekcja]) nowe[r.kolekcja][r.id] = r.dane;
+      if (data.length < 1000) break;
+    }
+    if (zapisyWToku) { pominieto = true; return; }   // coś się jeszcze wysyła — pobierzemy ponownie po zapisie
+    dane = nowe; zmieniono();
+    if (bladPolaczenia) { bladPolaczenia = false; ukryjBaner(); }
+  }
+  let czasomierz = null;
+  const odswiez = () => {
+    clearTimeout(czasomierz);
+    czasomierz = setTimeout(() => pobierz().catch(() => {
+      bladPolaczenia = true;
+      pokazBaner('Brak połączenia z chmurą — pokazuję ostatnio pobrane dane. Nowe wpisy mogą się nie zapisać.');
+    }), 300);
+  };
+  // Wysyłka jednej zmiany; przy błędzie pokazujemy komunikat i wracamy do stanu z chmury
+  async function wyslij(zapytanie) {
+    zapisyWToku++;
+    try { sprawdz(await zapytanie); }
+    catch (e) { bladPolaczenia = true; pokazBaner('Nie udało się zapisać w chmurze — sprawdź internet i spróbuj jeszcze raz.'); throw e; }
+    finally { zapisyWToku--; if (!zapisyWToku && (bladPolaczenia || pominieto)) { pominieto = false; odswiez(); } }
+  }
+  const dokument = (k, id) => ({
+    id,
+    set: async d => { dane[k][id] = kopia(d); zmieniono(); await wyslij(sb.from('dokumenty').upsert(wiersz(k, id))); },
+    update: async d => {
+      if (!dane[k][id]) throw { code: 'invalid_argument' };
+      dane[k][id] = { ...dane[k][id], ...kopia(d) }; zmieniono();
+      await wyslij(sb.from('dokumenty').upsert(wiersz(k, id)));
+    },
+    delete: async () => { delete dane[k][id]; zmieniono(); await wyslij(sb.from('dokumenty').delete().match({ user_id: user.id, kolekcja: k, id })); },
+  });
+  const noweId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  // Wiele wierszy naraz (paczki po 500, żeby nie wysyłać jednego ogromnego zapytania)
+  async function wyslijWiersze(wiersze) {
+    for (let i = 0; i < wiersze.length; i += 500) await wyslij(sb.from('dokumenty').upsert(wiersze.slice(i, i + 500)));
+  }
+
+  // Inne urządzenie coś zmieniło → Supabase daje znać (realtime) → pobieramy świeże dane.
+  // Dodatkowo odświeżamy po powrocie do karty i po odzyskaniu internetu (telefon często usypia stronę).
+  sb.channel('dokumenty').on('postgres_changes', { event: '*', schema: 'public', table: 'dokumenty' }, odswiez).subscribe();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) odswiez(); });
+  window.addEventListener('online', odswiez);
+  odswiez();
+
+  return {
+    dziala: () => true,
+    wszystko: () => kopia(dane),
+    // wczytanie kopii z pliku: kasujemy wszystko w chmurze i wysyłamy dane z kopii
+    zastap: async nowe => {
+      dane = { ...pusteDane(), ...kopia(nowe) }; zmieniono();
+      await wyslij(sb.from('dokumenty').delete().eq('user_id', user.id));
+      await wyslijWiersze(KOLEKCJE.flatMap(k => Object.keys(dane[k]).map(id => wiersz(k, id))));
+    },
+    // dodaje do chmury wpisy, których tam jeszcze nie ma (niczego nie nadpisuje); zwraca ich liczbę
+    dodajBrakujace: async lokalne => {
+      const nowe = [];
+      for (const k of KOLEKCJE) for (const [id, d] of Object.entries(lokalne[k] || {}))
+        if (!dane[k][id]) { dane[k][id] = kopia(d); nowe.push(wiersz(k, id)); }
+      zmieniono();
+      await wyslijWiersze(nowe);
+      return nowe.length;
+    },
+    collection: k => ({
+      doc: id => dokument(k, id || noweId()),
+      add: async d => { const r = dokument(k, noweId()); await r.set(d); return r; },
+      onSnapshot: fn => { sluchacze.push([k, fn]); powiadom(); return () => {}; },
+    }),
+    doc: sciezka => { const [k, id] = sciezka.split('/'); return dokument(k, id); },
+  };
+}
+
+// Wpisy zapisane na tym urządzeniu przed zalogowaniem, których jeszcze nie dodaliśmy do chmury
+function lokalneDoWyslania() {
+  let lokalne = pusteDane(), wyslane = [];
+  try { lokalne = { ...lokalne, ...JSON.parse(localStorage.getItem(KLUCZ) || '{}') }; } catch {}
+  try { wyslane = JSON.parse(localStorage.getItem(KLUCZ_WYSLANE) || '[]'); } catch {}
+  const wChmurze = db?.wszystko?.() || pusteDane(), juz = new Set(wyslane);
+  const wynik = pusteDane();
+  for (const k of KOLEKCJE) for (const [id, d] of Object.entries(lokalne[k] || {}))
+    if (!wChmurze[k]?.[id] && !juz.has(k + '/' + id)) wynik[k][id] = d;
+  return wynik;
+}
+const ileWpisow = d => KOLEKCJE.reduce((s, k) => s + Object.keys(d[k] || {}).length, 0);
+
+const komSynchro = (t, k) => { $('synchro-kom').textContent = t; $('synchro-kom').className = 'komunikat ' + (k || ''); };
+function renderSynchro() {
+  if (!sb) return;
+  $('synchro-form').hidden = trybChmura;
+  $('synchro-zalogowany').hidden = !trybChmura;
+  if (!trybChmura) {
+    $('synchro-info').textContent = 'Zaloguj się, żeby mieć te same wyniki na telefonie i komputerze. ' +
+      'Bez logowania dane są zapisane tylko w tej przeglądarce. Konto zakładasz raz, potem logujesz się nim na każdym urządzeniu.';
+    return;
+  }
+  const doWyslania = lokalneDoWyslania(), ile = ileWpisow(doWyslania);
+  $('s-polacz').hidden = !ile;
+  $('synchro-info').textContent = `Zalogowano: ${uzytkownik.email}. Wyniki zapisują się w chmurze i widać je na każdym zalogowanym urządzeniu.` +
+    (ile ? ` Na tym urządzeniu są jeszcze dane sprzed logowania (${opisDanych(doWyslania)}), których nie ma w chmurze — możesz je dodać.` : '');
+}
+async function logowanie(rejestracja) {
+  const email = $('s-email').value.trim(), haslo = $('s-haslo').value;
+  if (!$('synchro-form').reportValidity()) return;
+  for (const b of $('synchro-form').querySelectorAll('button')) b.disabled = true;
+  komSynchro(rejestracja ? 'Zakładam konto…' : 'Loguję…', '');
+  try {
+    const { data, error } = rejestracja
+      ? await sb.auth.signUp({ email, password: haslo })
+      : await sb.auth.signInWithPassword({ email, password: haslo });
+    if (error) throw error;
+    if (!data.session) { komSynchro('Konto założone. Sprawdź skrzynkę e-mail i kliknij link potwierdzający, potem się zaloguj.', 'ok'); return; }
+    location.reload();                          // start od nowa — tym razem z danymi z chmury
+  } catch (e) {
+    const m = String(e?.message || '');
+    komSynchro(/invalid login/i.test(m) ? 'Zły e-mail lub hasło.'
+      : /already registered/i.test(m) ? 'To konto już istnieje — kliknij „Zaloguj”.'
+      : /fetch|network/i.test(m) ? 'Brak internetu — spróbuj za chwilę.'
+      : 'Nie udało się: ' + m, 'blad');
+  } finally {
+    for (const b of $('synchro-form').querySelectorAll('button')) b.disabled = false;
+  }
+}
+$('synchro-form').onsubmit = e => { e.preventDefault(); logowanie(false); };
+$('s-rejestracja').onclick = () => logowanie(true);
+$('s-wyloguj').onclick = async () => { try { await sb.auth.signOut(); } catch {} location.reload(); };
+$('s-polacz').onclick = async () => {
+  const doWyslania = lokalneDoWyslania();
+  $('s-polacz').disabled = true; komSynchro('Wysyłam…', '');
+  try {
+    const ile = await db.dodajBrakujace(doWyslania);
+    // zapamiętujemy, co już wysłaliśmy — żeby przycisk nie wracał, gdy później coś usuniesz w chmurze
+    let wyslane = []; try { wyslane = JSON.parse(localStorage.getItem(KLUCZ_WYSLANE) || '[]'); } catch {}
+    for (const k of KOLEKCJE) for (const id of Object.keys(doWyslania[k])) wyslane.push(k + '/' + id);
+    try { localStorage.setItem(KLUCZ_WYSLANE, JSON.stringify(wyslane)); } catch {}
+    komSynchro(`Dodano do chmury: ${ile} ${odmiana(ile, 'wpis', 'wpisy', 'wpisów')}.`, 'ok');
+  } catch { komSynchro('Nie udało się wysłać — sprawdź internet i spróbuj ponownie.', 'blad'); }
+  $('s-polacz').disabled = false; renderSynchro();
+};
+
 // ===== Kopia zapasowa (plik .json) =====
 const opisDanych = d => {
   const c = Object.keys(d.cwiczenia || {}).length, w = Object.keys(d.wyniki || {}).length;
@@ -1355,9 +1569,10 @@ const komKopia = (t, k) => { $('kopia-kom').textContent = t; $('kopia-kom').clas
 function renderKopia() {
   if (!trybLokalny) return;
   let ost = null; try { ost = localStorage.getItem(KLUCZ + '-kopia'); } catch {}
-  $('kopia-info').textContent = `W tej przeglądarce: ${opisDanych(db.wszystko())}. ` +
+  $('kopia-pod').textContent = trybChmura ? 'plik z wszystkimi danymi z chmury' : 'dane są zapisane tylko w tej przeglądarce';
+  $('kopia-info').textContent = `${trybChmura ? 'W chmurze' : 'W tej przeglądarce'}: ${opisDanych(db.wszystko())}. ` +
     (ost ? `Ostatnia kopia: ${new Date(Number(ost)).toLocaleDateString('pl-PL')}. ` : 'Nie masz jeszcze żadnej kopii. ') +
-    'Wyczyszczenie danych przeglądarki skasuje wyniki, więc co jakiś czas zapisz kopię.';
+    (trybChmura ? 'Kopia przyda się, gdyby coś poszło nie tak.' : 'Wyczyszczenie danych przeglądarki skasuje wyniki, więc co jakiś czas zapisz kopię.');
 }
 $('kopia-zapisz').onclick = () => {
   const dane = { aplikacja: 'dziennik-treningowy', wersja: 1, zapisano: new Date().toISOString(), ...db.wszystko() };
@@ -1377,7 +1592,7 @@ function przygotujImport(d) {
   if (!d || typeof d !== 'object' || !KOLEKCJE.some(k => d[k] && typeof d[k] === 'object')) return komKopia('To nie jest plik kopii dziennika.', 'blad');
   doWczytania = Object.fromEntries(KOLEKCJE.map(k => [k, d[k] || {}]));
   pokazZakladke('wyniki');
-  komKopia(`Kopia zawiera: ${opisDanych(doWczytania)}. Wczytanie zastąpi to, co jest teraz w tej przeglądarce (${opisDanych(db.wszystko())}).`, '');
+  komKopia(`Kopia zawiera: ${opisDanych(doWczytania)}. Wczytanie zastąpi obecne dane (${opisDanych(db.wszystko())}).`, '');
   pokazPotwierdzenie(true);
   setTimeout(() => $('kopia').scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
 }
@@ -1386,10 +1601,13 @@ $('kopia-plik').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   try { przygotujImport(JSON.parse(await f.text())); } catch { komKopia('Nie udało się odczytać pliku.', 'blad'); }
 };
-$('kopia-potwierdz').onclick = () => {
+$('kopia-potwierdz').onclick = async () => {
   if (!doWczytania) return;
-  db.zastap(doWczytania); doWczytania = null; pokazPotwierdzenie(false);
-  komKopia('Wczytano dane z kopii.', 'ok');
+  const d = doWczytania; doWczytania = null; pokazPotwierdzenie(false);
+  komKopia('Wczytuję…', '');
+  // w chmurze zastąpienie trwa chwilę (wysyłka przez internet), więc czekamy na wynik
+  try { await db.zastap(d); komKopia('Wczytano dane z kopii.', 'ok'); }
+  catch { komKopia('Nie udało się wczytać kopii do chmury — sprawdź internet i spróbuj ponownie.', 'blad'); }
 };
 $('kopia-anuluj').onclick = () => { doWczytania = null; pokazPotwierdzenie(false); komKopia('Anulowano — dane bez zmian.', ''); };
 
@@ -1403,9 +1621,14 @@ if (ZAKLADKI.includes(location.hash.slice(1))) pokazZakladke(location.hash.slice
   // Gdzie są dane? Na claude.ai — baza claude.ai; na GitHub Pages (lub z pliku na dysku) — pamięć przeglądarki
   trybLokalny = !window.claude?.use && (location.hostname.endsWith('github.io') || location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(location.hostname));
   if (trybLokalny) {
-    db = lokalnaBaza();
+    // zalogowany w Supabase → dane z chmury (wspólne dla telefonu i komputera); inaczej → pamięć przeglądarki
+    uzytkownik = await polaczSupabase();
+    trybChmura = !!uzytkownik;
+    db = trybChmura ? chmuraBaza(uzytkownik) : lokalnaBaza();
+    $('synchro').hidden = !sb;
     $('kopia').hidden = false;
     if (!db.dziala()) pokazBladZapisu();
+    if (SUPABASE_URL && !sb) pokazBaner('Brak połączenia z chmurą — pokazuję dane zapisane tylko w tej przeglądarce. Odśwież stronę, gdy wróci internet.');
     try { navigator.storage?.persist?.(); } catch {}   // prośba, żeby przeglądarka sama nie czyściła danych
     // link z danymi do przeniesienia: …/#import=<dane zakodowane w base64>
     if (location.hash.startsWith('#import=')) {
