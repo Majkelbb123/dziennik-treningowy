@@ -209,7 +209,7 @@ details.nowe .rzad { margin-top: 10px; }
 .baner { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--danger); color: var(--danger); margin-bottom: 14px; }
 .baner.spokojny { border-color: var(--line); color: var(--muted); background: var(--surface); }
 .rekord .wart { overflow-wrap: anywhere; }
-@media (max-width: 480px) { .zakladki button { font-size: 1rem; padding: 8px 6px; letter-spacing: .02em; } }
+@media (max-width: 480px) { .zakladki button { font-size: 1rem; padding: 8px 4px; letter-spacing: .02em; } .zakladki .dl { display: none; } }
 
 /* Moje treningi: lista ćwiczeń */
 .lista-cw { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -305,6 +305,47 @@ details.trening .cw-wiersz { background: var(--bg); }
 .tabela-box .wpis-tytul { font-weight: 600; margin: 0 0 4px; color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
 .tabela-box .notatka { color: var(--muted); font-style: italic; margin: 6px 0 0; }
 
+/* Trening teraz: zielona kropka na zakładce, gdy trening trwa */
+.zakladki button.trwa::after { content: ""; display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: var(--t-cardio); margin-left: .35em; vertical-align: .12em; }
+.tr-start { display: grid; gap: 8px; }
+.tr-start .cw-wiersz.tr-dzis { border: 2px solid var(--accent); }
+.tr-ile { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; min-width: 2.2rem; height: 2.2rem; border-radius: 8px; background: var(--bg); display: grid; place-items: center; color: var(--muted); }
+.tr-dzis .tr-ile { background: var(--accent); color: var(--accent-ink); }
+.tr-lista { display: grid; gap: 12px; margin-top: 12px; }
+.tr-glowa { display: flex; align-items: center; gap: 8px; }
+.tr-glowa h2, .tr-glowa h3 { margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tr-glowa h3 { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 1.3rem; letter-spacing: .03em; line-height: 1.1; }
+.tr-zegar { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; color: var(--muted); }
+.tr-info { color: var(--muted); font-size: .9rem; margin: 4px 0 10px; overflow-wrap: anywhere; }
+.tr-info b { color: var(--ink); font-weight: 600; }
+/* Wiersz serii: numer | pola | ✓ | × */
+.tr-seria { display: grid; grid-template-columns: 1.4rem 1fr 1fr 46px 30px; gap: 6px; align-items: center; }
+.tr-seria.jedno { grid-template-columns: 1.4rem 1fr 46px 30px; }
+.tr-seria + .tr-seria { margin-top: 6px; }
+.tr-seria .nr { font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; color: var(--muted); }
+.tr-seria.etyk { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.tr-ok { height: 42px; border-radius: 7px; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); font: inherit; font-size: 1.25rem; font-weight: 700; cursor: pointer; }
+.tr-seria.zrobiona .tr-ok { background: var(--t-cardio); border-color: var(--t-cardio); color: #fff; }
+.tr-seria.zrobiona input { border-color: color-mix(in srgb, var(--t-cardio) 55%, var(--line)); }
+.tr-cw .przyciski { margin-top: 10px; }
+.tr-wybor details.trening { background: var(--bg); }
+.tr-wybor .treningi-lista { margin-top: 4px; }
+.tr-wybor-cw { display: grid; gap: 2px; padding: 0 10px 10px; }
+.tr-wybor-cw .wl-opcja:disabled { color: var(--muted); cursor: default; background: transparent; }
+.tr-wybor-cw .wl-opcja small { margin-left: auto; font-size: .8rem; }
+.tr-podsumowanie { border: 2px solid var(--t-cardio); margin-bottom: 12px; }
+/* Minutnik przerwy — przyklejony do dołu ekranu, widoczny w każdej zakładce */
+.przerwa {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--ink); color: var(--bg);
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.przerwa .etyk { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+.przerwa .czas { font-family: var(--font-display); font-weight: 700; font-size: 2rem; line-height: 1; flex: 1; }
+.przerwa button { font: inherit; font-weight: 600; font-size: .9rem; background: transparent; color: inherit; border: 1.5px solid color-mix(in srgb, currentColor 40%, transparent); border-radius: 7px; padding: 8px 9px; cursor: pointer; }
+.przerwa.koniec { background: var(--t-cardio); color: #fff; }
+body.z-przerwa .app { padding-bottom: 110px; }
+
 @media (prefers-reduced-motion: no-preference) {
   .btn, .chip, .zakladki button { transition: background-color .15s, border-color .15s, color .15s; }
 }
@@ -317,12 +358,18 @@ details.trening .cw-wiersz { background: var(--bg); }
   </header>
 
   <nav class="zakladki" role="tablist">
+    <button role="tab" id="tab-trening" aria-controls="v-trening" aria-selected="false">Trening</button>
     <button role="tab" id="tab-wyniki" aria-controls="v-wyniki" aria-selected="true">Wyniki</button>
     <button role="tab" id="tab-treningi" aria-controls="v-treningi" aria-selected="false">Moje treningi</button>
-    <button role="tab" id="tab-plan" aria-controls="v-plan" aria-selected="false">Plan treningowy</button>
+    <button role="tab" id="tab-plan" aria-controls="v-plan" aria-selected="false">Plan<span class="dl"> treningowy</span></button>
   </nav>
 
   <div id="baner" class="baner" hidden></div>
+
+  <!-- Trening teraz: wybór treningu → odhaczanie serii → zapis wszystkiego naraz -->
+  <main id="v-trening" role="tabpanel" aria-labelledby="tab-trening" hidden>
+    <div id="trening"><p class="pusto">Ładowanie…</p></div>
+  </main>
 
   <!-- OKIENKO 1: WYNIKI -->
   <main id="v-wyniki" role="tabpanel" aria-labelledby="tab-wyniki">
@@ -435,6 +482,15 @@ details.trening .cw-wiersz { background: var(--bg); }
   </main>
 </div>
 
+<!-- Minutnik przerwy między seriami -->
+<div id="przerwa" class="przerwa" role="timer" hidden>
+  <span><span class="etyk" id="przerwa-etyk">Przerwa</span><br><span class="czas" id="przerwa-czas">1:30</span></span>
+  <span style="flex: 1;"></span>
+  <button type="button" data-p="-15" aria-label="Skróć przerwę o 15 sekund">−15 s</button>
+  <button type="button" data-p="15" aria-label="Wydłuż przerwę o 15 sekund">+15 s</button>
+  <button type="button" data-p="0">Pomiń</button>
+</div>
+
 <script>
 // ===== Stałe =====
 const TYPY = {
@@ -516,7 +572,7 @@ function idRekordow() {
 }
 
 // ===== Zakładki =====
-const ZAKLADKI = ['wyniki', 'treningi', 'plan'];
+const ZAKLADKI = ['trening', 'wyniki', 'treningi', 'plan'];
 function pokazZakladke(nazwa) {
   if (!ZAKLADKI.includes(nazwa)) nazwa = 'wyniki';
   // pokazujemy jedną zakładkę, resztę chowamy
@@ -1318,10 +1374,345 @@ $('treningi').addEventListener('click', e => {
   renderTreningi();
 });
 
+// ===== Trening teraz =====
+// Sesja = trening w trakcie. Leży w pamięci telefonu (localStorage), więc przetrwa przełączanie zakładek
+// i nawet zamknięcie aplikacji. Do bazy trafia dopiero po "Zakończ i zapisz" — jako zwykłe wyniki.
+const KLUCZ_SESJA = 'dziennik-treningowy-v1-sesja';
+// sesja = {start, data, nazwa, przerwa (s), koniecPrzerwy, cw: [{nazwa, cel, serie: [{kg, powt, sek, km, czas, ok}]}]}
+let sesja = null;
+try { sesja = JSON.parse(localStorage.getItem(KLUCZ_SESJA) || 'null'); } catch {}
+const zapiszSesje = () => { try { sesja ? localStorage.setItem(KLUCZ_SESJA, JSON.stringify(sesja)) : localStorage.removeItem(KLUCZ_SESJA); } catch {} };
+let trWybor = false;          // czy otwarta lista "Dodaj ćwiczenie"
+let trPodsumowanie = null;    // co pokazać po zapisaniu treningu
+const trOtwarte = new Set();  // rozwinięte grupy na liście "Dodaj ćwiczenie"
+
+// Jakie pola ma seria w danym rodzaju ćwiczenia: [klucz, napis, podpowiedź]
+const POLA_TR = {
+  ciezar: [['kg', 'kg', '60'], ['powt', 'powt.', '8']],
+  powtorzenia: [['powt', 'powt.', '10']],
+  czas: [['sek', 'sekundy', '60']],
+  cardio: [['km', 'km', '5'], ['czas', 'czas', '27:30']],
+};
+const typCw = nazwa => cwPoNazwie(nazwa)?.typ || 'ciezar';
+const ostatniWynik = nazwa => chronologicznie().filter(w => w.cwiczenie === nazwa).pop() || null;
+const celZPlanu = nazwa => (plan?.[DNI[DZIS_IDX][0]]?.pozycje || []).find(p => p.cwiczenie === nazwa)?.cel || '';
+
+// Nowa seria od razu wypełniona: kopia poprzedniej serii z dziś, a jeśli to pierwsza — pierwsza seria z ostatniego razu
+function propozycjaSerii(c) {
+  const typ = typCw(c.nazwa), poprz = c.serie[c.serie.length - 1];
+  if (poprz) { const { ok, ...bezOk } = poprz; return bezOk; }
+  const ost = ostatniWynik(c.nazwa);
+  if (!ost || ost.typ !== typ) return {};
+  if (typ === 'cardio') return { km: naPole(ost.km), czas: ost.czasSek ? fmtCzas(ost.czasSek) : '' };
+  const s = (ost.serie || [])[0]; if (!s) return {};
+  if (typ === 'ciezar') return { kg: s.kgTekst || naPole(s.kg), powt: String(s.powt ?? '') };
+  const k = typ === 'powtorzenia' ? 'powt' : 'sek';
+  return { [k]: naPole(s[k]) };
+}
+function dodajDoSesji(nazwa) {
+  if (!sesja || sesja.cw.some(c => c.nazwa === nazwa)) return;
+  const c = { nazwa, cel: celZPlanu(nazwa), serie: [] };
+  c.serie.push(propozycjaSerii(c));
+  sesja.cw.push(c);
+}
+function zacznijTrening(nazwa, lista) {
+  let przerwa = 90;
+  try { przerwa = Number(localStorage.getItem('przerwa')) || 90; } catch {}
+  sesja = { start: Date.now(), data: dzisISO(), nazwa, przerwa, koniecPrzerwy: null, cw: [] };
+  lista.forEach(dodajDoSesji);
+  trWybor = !lista.length;          // pusty trening → od razu lista do wyboru ćwiczeń
+  trPodsumowanie = null;
+  zapiszSesje(); renderTrening();
+  window.scrollTo({ top: 0 });
+}
+
+// Ekran startowy: dzisiejszy plan, wszystkie grupy treningów, pusty trening
+function htmlStartuTreningu() {
+  let h = '';
+  if (trPodsumowanie) {
+    const p = trPodsumowanie;
+    h += `<section class="panel tr-podsumowanie">
+      <div class="tr-glowa"><h2>Trening zapisany 💪</h2><button type="button" class="x" data-tr-zamknij aria-label="Zamknij podsumowanie">×</button></div>
+      <p style="margin: 6px 0 0;">${esc(p.nazwa)}: ${p.ile} ${odmiana(p.ile, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}, ${p.serii} ${odmiana(p.serii, 'seria', 'serie', 'serii')}, czas ${fmtCzas(p.czas)}.</p>
+      ${p.rekordy.length ? `<p class="komunikat rekord" style="margin-top: 6px;">Nowe rekordy: ${p.rekordy.map(esc).join(', ')}</p>` : ''}
+      <p style="margin: 10px 0 0;"><button type="button" class="btn cichy maly" data-tr-historia>Zobacz w historii</button></p>
+    </section>`;
+  }
+  const grupy = cwiczeniaWgTreningu();
+  if (!grupy.length) return h + `<section class="panel"><h2>Zacznij trening</h2>
+    <p class="pusto">Nie masz jeszcze ćwiczeń. Dodaj je w zakładce „Moje treningi” — potem wróć tutaj.</p></section>`;
+  const d = plan?.[DNI[DZIS_IDX][0]];
+  const zPlanu = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);
+  // kiedy ostatnio robiłeś coś z danej grupy
+  const ostatnio = cw => { const n = new Set(cw.map(c => c.nazwa)); return (wyniki || []).filter(w => n.has(w.cwiczenie)).map(w => w.data).sort().pop(); };
+  const wiersz = (atrybut, ile, nazwa, opis, klasa = '') => `<button type="button" class="cw-wiersz ${klasa}" ${atrybut}>
+      <span class="tr-ile">${ile}</span>
+      <span class="tresc"><span class="nazwa">${nazwa}</span><span class="cel">${opis}</span></span>
+      <span class="strzalka" aria-hidden="true">›</span></button>`;
+  h += `<section class="panel"><h2>Zacznij trening <small>w trakcie możesz dorzucić ćwiczenia z innych treningów</small></h2>
+    <div class="tr-start">`;
+  if (zPlanu.length) h += wiersz('data-tr-plan', zPlanu.length, 'Dziś wg planu' + (d.tytul ? ': ' + esc(d.tytul) : ''), esc(zPlanu.join(', ')), 'tr-dzis');
+  h += grupy.map(([t, cw]) => {
+    const kiedy = ostatnio(cw);
+    return wiersz(`data-tr-grupa="${esc(t)}"`, cw.length, esc(t),
+      `${cw.length} ${odmiana(cw.length, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}` + (kiedy ? ' · ostatnio ' + krotkaData(kiedy) : ''));
+  }).join('');
+  h += wiersz('data-tr-pusty', '+', 'Pusty trening', 'sam wybierzesz ćwiczenia z dowolnych treningów');
+  return h + `</div></section>`;
+}
+
+// Karta jednego ćwiczenia w trakcie treningu
+function htmlKartyTreningu(c, i) {
+  const typ = typCw(c.nazwa), pola = POLA_TR[typ] || POLA_TR.ciezar, ost = ostatniWynik(c.nazwa);
+  const jedno = pola.length === 1 ? 'jedno' : '';
+  const info = [
+    ost ? `Ostatnio (${krotkaData(ost.data)}): <b>${esc(opis(ost))}</b>` : 'Pierwszy raz — powodzenia!',
+    c.cel ? 'Cel: <b>' + esc(c.cel) + '</b>' : '',
+    cwPoNazwie(c.nazwa) ? '' : '<span style="color: var(--danger);">ćwiczenie usunięte z listy — nie zapisze się</span>',
+  ].filter(Boolean).join(' · ');
+  const serie = c.serie.map((s, j) => `<div class="tr-seria ${jedno} ${s.ok ? 'zrobiona' : ''}">
+      <span class="nr">${j + 1}</span>
+      ${pola.map(([k, et, ph]) => `<input data-tr="${i}-${j}-${k}" value="${esc(s[k] ?? '')}" placeholder="${ph}" autocomplete="off"
+        ${k === 'powt' || k === 'sek' ? 'inputmode="numeric"' : k === 'km' ? 'inputmode="decimal"' : ''} aria-label="Seria ${j + 1}: ${et}">`).join('')}
+      <button type="button" class="tr-ok" data-tr-ok="${i}-${j}" aria-pressed="${!!s.ok}" aria-label="Seria ${j + 1} zrobiona">✓</button>
+      <button type="button" class="x" data-tr-usun="${i}-${j}" aria-label="Usuń serię ${j + 1}">×</button>
+    </div>`).join('');
+  return `<section class="panel tr-cw" id="tr-cw-${i}">
+    <div class="tr-glowa"><span class="typ ${esc(typ)}"></span><h3>${esc(c.nazwa)}</h3>
+      <button type="button" class="x" data-tr-usun-cw="${i}" aria-label="Usuń ${esc(c.nazwa)} z treningu">×</button></div>
+    <p class="tr-info">${info}</p>
+    ${c.serie.length ? `<div class="tr-seria ${jedno} etyk" aria-hidden="true"><span></span>${pola.map(p => `<span>${p[1]}</span>`).join('')}<span></span><span></span></div>` : ''}
+    ${serie}
+    ${typ === 'cardio' && c.serie.length ? '' : `<div class="przyciski"><button type="button" class="btn cichy maly" data-tr-seria="${i}">+ Seria</button></div>`}
+  </section>`;
+}
+
+// Lista "Dodaj ćwiczenie" — wszystkie treningi, nie tylko ten wybrany
+function htmlWyboruTreningu() {
+  const w = new Set(sesja.cw.map(c => c.nazwa));
+  return `<section class="panel tr-wybor">
+    <div class="tr-glowa"><h2>Dodaj ćwiczenie <small>z dowolnego treningu</small></h2>
+      <button type="button" class="x" data-tr-wybierz aria-label="Zamknij listę">×</button></div>
+    <div class="treningi-lista">${cwiczeniaWgTreningu().map(([t, cw]) => `<details class="trening" data-tr-grupa-lista="${esc(t)}" ${trOtwarte.has(t) ? 'open' : ''}>
+      <summary><span class="chev" aria-hidden="true">›</span><span class="tr-nazwa">${esc(t)}</span>
+        <span class="tr-info" style="margin: 0;">${cw.length} ${odmiana(cw.length, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}</span></summary>
+      <div class="tr-wybor-cw">
+        ${cw.map(c => `<button type="button" class="wl-opcja" data-tr-dodaj="${esc(c.nazwa)}" ${w.has(c.nazwa) ? 'disabled' : ''}>
+          <span class="typ ${esc(c.typ)}"></span>${esc(c.nazwa)}${w.has(c.nazwa) ? '<small>już jest</small>' : ''}</button>`).join('')}
+        ${cw.some(c => !w.has(c.nazwa)) ? `<p style="margin: 6px 0 0;"><button type="button" class="btn cichy maly" data-tr-dodaj-grupe="${esc(t)}">+ Cały trening ${esc(t)}</button></p>` : ''}
+      </div></details>`).join('')}</div>
+    <p class="pusto" style="margin-top: 10px; font-size: .9rem;">Nowe ćwiczenie dodasz w zakładce „Moje treningi”.</p>
+  </section>`;
+}
+
+function renderTrening() {
+  $('tab-trening').classList.toggle('trwa', !!sesja);
+  const box = $('trening');
+  if (!cwiczenia) return;
+  if (!sesja) { box.innerHTML = htmlStartuTreningu(); tik(); return; }
+  const zrobione = sesja.cw.reduce((n, c) => n + c.serie.filter(s => s.ok).length, 0);
+  const opcje = [45, 60, 90, 120, 150, 180, 240, 300].map(s => `<option value="${s}" ${s === sesja.przerwa ? 'selected' : ''}>${fmtCzas(s)}</option>`).join('');
+  box.innerHTML = `<section class="panel">
+      <div class="tr-glowa"><h2>${esc(sesja.nazwa)}</h2><span class="tr-zegar" id="tr-zegar"></span></div>
+      <p class="tr-info" style="margin-bottom: 0;">Zrobione serie: <b>${zrobione}</b> · po serii kliknij ✓ — ruszy przerwa</p>
+      <div class="przyciski" style="margin-top: 10px; align-items: end;">
+        <label style="width: 7.5rem;">Przerwa <select id="tr-przerwa">${opcje}</select></label>
+        <button type="button" class="btn cichy" data-tr-wybierz>+ Dodaj ćwiczenie</button>
+      </div>
+    </section>
+    ${trWybor ? `<div style="margin-top: 12px;">${htmlWyboruTreningu()}</div>` : ''}
+    <div class="tr-lista">${sesja.cw.map(htmlKartyTreningu).join('') || '<p class="pusto">Wybierz ćwiczenia z listy powyżej.</p>'}</div>
+    <section class="panel" style="margin-top: 12px;">
+      <div class="przyciski">
+        <button type="button" class="btn" data-tr-koniec>Zakończ i zapisz</button>
+        <button type="button" class="btn cichy" data-tr-anuluj>Anuluj trening</button>
+      </div>
+      <p class="komunikat" id="tr-kom" role="status" style="margin-top: 10px;"></p>
+    </section>`;
+  tik();
+}
+const komTr = (tekst, klasa) => { const k = $('tr-kom'); if (k) { k.textContent = tekst; k.className = 'komunikat ' + (klasa || ''); } };
+
+// Zakończ: z odhaczonych serii robimy zwykłe wyniki (te same co w zakładce Wyniki)
+async function zakonczTrening(przycisk) {
+  if (!db) return komTr('Zapis jest teraz niedostępny.', 'blad');
+  const doZapisu = [], bledy = [];
+  let serii = 0;
+  sesja.cw.forEach((c, i) => {
+    const cw = cwPoNazwie(c.nazwa), zrobione = c.serie.filter(s => s.ok);
+    if (!cw || !zrobione.length) return;
+    const w = { data: sesja.data, cwiczenie: cw.nazwa, typ: cw.typ, notatka: '', utworzono: Date.now() + i };
+    if (cw.typ === 'cardio') {
+      const s = zrobione[zrobione.length - 1];
+      const km = liczba(s.km), czas = String(s.czas ?? '').trim() ? parsujCzas(s.czas) : 0;
+      if (!(km > 0) || Number.isNaN(czas)) return bledy.push(cw.nazwa);
+      w.km = km; if (czas) w.czasSek = czas;
+      serii++;
+    } else {
+      const k = cw.typ === 'ciezar' ? 'kg' : cw.typ === 'powtorzenia' ? 'powt' : 'sek';
+      const czyste = zrobione.map(s => {
+        if (cw.typ !== 'ciezar') return { [k]: liczba(s[k]) };
+        const tekst = String(s.kg ?? '').trim();
+        const seria = { kg: sumaKg(tekst), powt: liczba(s.powt) };
+        if (tekst.includes('+')) seria.kgTekst = tekst.replace(/\s+/g, '');
+        return seria;
+      });
+      // każda odhaczona seria musi mieć sensowne liczby — inaczej lepiej zapytać niż po cichu zgubić
+      if (czyste.some(s => !((s.kg ?? 0) >= 0) || !((s.powt ?? s[k]) > 0))) return bledy.push(cw.nazwa);
+      w.serie = czyste;
+      serii += czyste.length;
+    }
+    doZapisu.push(w);
+  });
+  if (bledy.length) return komTr('Popraw liczby w odhaczonych seriach: ' + bledy.join(', '), 'blad');
+  if (!doZapisu.length) return komTr('Nie odhaczyłeś żadnej serii. Kliknij ✓ przy zrobionych seriach albo anuluj trening.', 'blad');
+
+  // rekordy sprawdzamy przed zapisem (tak samo jak w formularzu wyniku)
+  const rekordy = doZapisu.filter(w => {
+    const poprz = (wyniki || []).filter(x => x.cwiczenie === w.cwiczenie).map(wartosc);
+    return poprz.length > 0 && wartosc(w) > Math.max(...poprz);
+  }).map(w => w.cwiczenie);
+  przycisk.disabled = true;
+  try {
+    for (const w of doZapisu) await db.collection('wyniki').add(w);
+  } catch {
+    przycisk.disabled = false;
+    return komTr('Nie udało się zapisać. Spróbuj jeszcze raz.', 'blad');
+  }
+  trPodsumowanie = { nazwa: sesja.nazwa, ile: doZapisu.length, serii, rekordy, czas: (Date.now() - sesja.start) / 1000 };
+  sesja = null; trWybor = false; zapiszSesje();
+  renderTrening(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Dwuklik "na pewno?" — jak przy usuwaniu w innych miejscach strony
+function potwierdzTr(b, tekst) {
+  if (b.classList.contains('potwierdz')) return true;
+  const stary = b.textContent;
+  b.classList.add('potwierdz'); b.textContent = tekst;
+  setTimeout(() => { if (b.isConnected) { b.classList.remove('potwierdz'); b.textContent = stary; } }, 3000);
+  return false;
+}
+
+$('trening').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const d = b.dataset;
+  // --- ekran startowy ---
+  if (d.trPlan !== undefined) {
+    const p = plan[DNI[DZIS_IDX][0]];
+    return zacznijTrening(p.tytul || 'Trening wg planu', [...new Set(p.pozycje.map(x => x.cwiczenie))].filter(cwPoNazwie));
+  }
+  if (d.trGrupa !== undefined) return zacznijTrening(d.trGrupa, (cwiczeniaWgTreningu().find(([t]) => t === d.trGrupa)?.[1] || []).map(c => c.nazwa));
+  if (d.trPusty !== undefined) return zacznijTrening('Własny trening', []);
+  if (d.trZamknij !== undefined) { trPodsumowanie = null; return renderTrening(); }
+  if (d.trHistoria !== undefined) { pokazZakladke('wyniki'); return $('historia').scrollIntoView({ behavior: 'smooth' }); }
+  if (!sesja) return;
+  // --- trening w trakcie ---
+  if (d.trOk) {
+    const [i, j] = d.trOk.split('-').map(Number), c = sesja.cw[i], s = c.serie[j];
+    // pusta seria? zamiast odhaczać, ustaw kursor w polu
+    if (!s.ok && !(POLA_TR[typCw(c.nazwa)] || []).some(([k]) => String(s[k] ?? '').trim())) return b.parentElement.querySelector('input')?.focus();
+    s.ok = !s.ok;
+    if (s.ok) {
+      zacznijPrzerwe();
+      // odhaczona ostatnia seria → od razu przygotuj następną (niezaznaczoną nie zapiszemy)
+      if (j === c.serie.length - 1 && typCw(c.nazwa) !== 'cardio') c.serie.push(propozycjaSerii(c));
+    }
+  }
+  else if (d.trSeria) { const c = sesja.cw[Number(d.trSeria)]; c.serie.push(propozycjaSerii(c)); }
+  else if (d.trUsun) { const [i, j] = d.trUsun.split('-').map(Number); sesja.cw[i].serie.splice(j, 1); }
+  else if (d.trUsunCw) {
+    const i = Number(d.trUsunCw);
+    if (sesja.cw[i].serie.some(s => s.ok) && !potwierdzTr(b, 'Usunąć?')) return;
+    sesja.cw.splice(i, 1);
+  }
+  else if (d.trWybierz !== undefined) trWybor = !trWybor;
+  else if (d.trDodaj) { dodajDoSesji(d.trDodaj); trWybor = false; }
+  else if (d.trDodajGrupe) (cwiczeniaWgTreningu().find(([t]) => t === d.trDodajGrupe)?.[1] || []).forEach(c => dodajDoSesji(c.nazwa));
+  else if (d.trKoniec !== undefined) return zakonczTrening(b);
+  else if (d.trAnuluj !== undefined) {
+    if (!potwierdzTr(b, 'Na pewno? Serie się nie zapiszą')) return;
+    sesja = null; trWybor = false;
+  }
+  else return;
+  zapiszSesje(); renderTrening();
+  // nowa seria z "+ Seria" → kursor w jej pierwszym polu
+  if (d.trSeria) { const p = $('tr-cw-' + d.trSeria)?.querySelectorAll('.tr-seria:not(.etyk)'); p?.[p.length - 1]?.querySelector('input')?.focus(); }
+  if (d.trDodaj) $('tr-cw-' + (sesja.cw.length - 1))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+// Wpisywanie liczb: zapamiętujemy od razu (bez przerysowania, żeby nie zgubić kursora)
+$('trening').addEventListener('input', e => {
+  const t = e.target.dataset.tr; if (!t || !sesja) return;
+  const [i, j, k] = t.split('-');
+  const s = sesja.cw[Number(i)]?.serie[Number(j)];
+  if (s) { s[k] = e.target.value; zapiszSesje(); }
+});
+$('trening').addEventListener('change', e => {
+  if (e.target.id !== 'tr-przerwa' || !sesja) return;
+  sesja.przerwa = Number(e.target.value); zapiszSesje();
+  try { localStorage.setItem('przerwa', String(sesja.przerwa)); } catch {}   // zapamiętaj na kolejne treningi
+});
+// zapamiętujemy, które grupy są rozwinięte na liście "Dodaj ćwiczenie" (toggle nie "bąbelkuje", stąd true)
+$('trening').addEventListener('toggle', e => {
+  const t = e.target.dataset?.trGrupaLista; if (t === undefined) return;
+  if (e.target.open) trOtwarte.add(t); else trOtwarte.delete(t);
+}, true);
+
+// ===== Minutnik przerwy =====
+// Liczymy do konkretnej godziny końca (nie "odejmujemy sekundy"), więc czas jest dobry
+// nawet gdy telefon uśpi aplikację na chwilę.
+let dzwiek = null;
+function odblokujDzwiek() {
+  // przeglądarka pozwala grać dźwięk dopiero po kliknięciu — "włączamy głośnik" przy ✓
+  try { dzwiek ??= new (window.AudioContext || window.webkitAudioContext)(); dzwiek.resume(); } catch {}
+}
+function dzwonek() {
+  try { navigator.vibrate?.([400, 150, 400]); } catch {}   // wibracje działają na Androidzie (iPhone ich nie udostępnia)
+  if (!dzwiek) return;
+  try {
+    for (const t of [0, .35, .7]) {                         // trzy krótkie piknięcia
+      const o = dzwiek.createOscillator(), g = dzwiek.createGain(), t0 = dzwiek.currentTime + t;
+      o.frequency.value = 880;
+      g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.4, t0 + .02); g.gain.exponentialRampToValueAtTime(.0001, t0 + .25);
+      o.connect(g).connect(dzwiek.destination); o.start(t0); o.stop(t0 + .3);
+    }
+  } catch {}
+}
+function zacznijPrzerwe() {
+  odblokujDzwiek();
+  sesja.koniecPrzerwy = Date.now() + sesja.przerwa * 1000;
+  sesja.zadzwoniono = false;
+}
+// Co pół sekundy: zegar treningu i pasek przerwy
+function tik() {
+  if (sesja && $('tr-zegar')) $('tr-zegar').textContent = fmtCzas((Date.now() - sesja.start) / 1000);
+  const bar = $('przerwa');
+  const zostalo = sesja?.koniecPrzerwy ? Math.ceil((sesja.koniecPrzerwy - Date.now()) / 1000) : null;
+  if (zostalo === null || zostalo <= -5) {          // brak przerwy (albo minęło 5 s od końca) → chowamy pasek
+    if (sesja?.koniecPrzerwy) { sesja.koniecPrzerwy = null; zapiszSesje(); }
+    bar.hidden = true; document.body.classList.remove('z-przerwa');
+    return;
+  }
+  bar.hidden = false; document.body.classList.add('z-przerwa');
+  bar.classList.toggle('koniec', zostalo <= 0);
+  $('przerwa-etyk').textContent = zostalo > 0 ? 'Przerwa' : 'Koniec przerwy';
+  $('przerwa-czas').textContent = zostalo > 0 ? fmtCzas(zostalo) : 'Do roboty!';
+  if (zostalo <= 0 && !sesja.zadzwoniono) { sesja.zadzwoniono = true; zapiszSesje(); dzwonek(); }
+}
+setInterval(tik, 500);
+$('przerwa').addEventListener('click', e => {
+  const p = e.target.closest('[data-p]')?.dataset.p; if (p === undefined || !sesja?.koniecPrzerwy) return;
+  if (p === '0') sesja.koniecPrzerwy = null;
+  else sesja.koniecPrzerwy = Math.max(Date.now() + 1000, sesja.koniecPrzerwy + Number(p) * 1000);
+  zapiszSesje(); tik();
+});
+
 // ===== Odśwież wszystko =====
 function renderWszystko() {
   if (cwiczenia) { renderSelecty(); if (!$('f-pola').children.length) renderPola(); }
   renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderKopia(); renderSynchro();
+  // dane z chmury przyszły w trakcie wpisywania serii? nie przerysowujemy, żeby nie zgubić kursora
+  const a = document.activeElement;
+  if (!(a && $('trening').contains(a) && /INPUT|SELECT/.test(a.tagName))) renderTrening();
 }
 
 // ===== Zapis w pamięci przeglądarki (wersja na GitHub Pages) =====
@@ -1667,6 +2058,7 @@ $('dzisiejsza-data').textContent = new Date().toLocaleDateString('pl-PL', { week
 $('f-data').value = dzisISO();
 try { const z = localStorage.getItem('zakladka'); if (z) pokazZakladke(z); } catch (e) {}
 if (ZAKLADKI.includes(location.hash.slice(1))) pokazZakladke(location.hash.slice(1));
+if (sesja) pokazZakladke('trening');   // trening w trakcie → wracamy prosto do niego
 
 (async () => {
   // Gdzie są dane? Na claude.ai — baza claude.ai; na GitHub Pages (lub z pliku na dysku) — pamięć przeglądarki
