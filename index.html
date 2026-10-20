@@ -52,6 +52,8 @@
 }
 
 * { box-sizing: border-box; }
+/* przesunięcie palcem w bok ma zmieniać zakładkę, a nie cofać przeglądarkę do poprzedniej strony */
+html, body { overscroll-behavior-x: none; }
 body {
   background: var(--bg); color: var(--ink);
   font-family: var(--font-body); font-size: 16px; line-height: 1.45;
@@ -379,6 +381,13 @@ body.z-przerwa .app { padding-bottom: 110px; }
 @media (prefers-reduced-motion: no-preference) {
   .btn, .chip, .zakladki button { transition: background-color .15s, border-color .15s, color .15s; }
 }
+/* Przesuwanie palcem między zakładkami: nowa zakładka wjeżdża z boku */
+@media (prefers-reduced-motion: no-preference) {
+  .wjazd-z-prawej { animation: wjazd-z-prawej .22s ease-out; }
+  .wjazd-z-lewej { animation: wjazd-z-lewej .22s ease-out; }
+}
+@keyframes wjazd-z-prawej { from { transform: translateX(28px); opacity: .4; } }
+@keyframes wjazd-z-lewej { from { transform: translateX(-28px); opacity: .4; } }
 </style>
 
 <div class="app">
@@ -646,6 +655,43 @@ function pokazZakladke(nazwa) {
   try { localStorage.setItem('zakladka', nazwa); } catch (e) {}
 }
 for (const z of ZAKLADKI) $('tab-' + z).onclick = () => pokazZakladke(z);
+
+// ===== Przesuwanie palcem między zakładkami =====
+// Palec w lewo → następna zakładka (Trening → Wyniki → Treningi → Plan), w prawo → poprzednia.
+// Liczy się tylko wyraźny ruch w bok — zwykłe przewijanie strony w górę i w dół nic nie zmienia.
+let dotyk = null;
+// Czy w tym miejscu przesuwanie w bok ma już inne zadanie (pole, w którym piszesz, szeroka tabela, minutnik)?
+function przesuwaWBok(el) {
+  if (el === document.activeElement && el.matches('input, textarea')) return true;   // przesuwanie kursora w tekście
+  for (; el && el !== document.body; el = el.parentElement) {
+    if (el.matches('input[type="range"], .przerwa')) return true;
+    const ox = getComputedStyle(el).overflowX;
+    if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 2) return true;
+  }
+  return false;
+}
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  // jeden palec, nie przy samej krawędzi ekranu (tam iPhone ma własny gest „wstecz”), nie w Moim koncie
+  dotyk = e.touches.length === 1 && t.clientX > 24 && t.clientX < innerWidth - 24
+    && $('v-konto').hidden && !przesuwaWBok(e.target)
+    ? { x: t.clientX, y: t.clientY, czas: Date.now() } : null;
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!dotyk) return;
+  const t = e.changedTouches[0], dx = t.clientX - dotyk.x, dy = t.clientY - dotyk.y, czas = Date.now() - dotyk.czas;
+  dotyk = null;
+  // co najmniej 60 px w bok, dużo bardziej w bok niż w pionie, i w miarę szybko
+  if (Math.abs(dx) < 60 || Math.abs(dx) < 1.8 * Math.abs(dy) || czas > 700) return;
+  const teraz = ZAKLADKI.findIndex(z => !$('v-' + z).hidden);
+  const nowa = ZAKLADKI[teraz + (dx < 0 ? 1 : -1)];
+  if (teraz < 0 || !nowa) return;              // pierwsza/ostatnia zakładka — dalej nie ma nic
+  pokazZakladke(nowa);
+  const v = $('v-' + nowa), klasa = dx < 0 ? 'wjazd-z-prawej' : 'wjazd-z-lewej';
+  v.classList.remove('wjazd-z-prawej', 'wjazd-z-lewej'); void v.offsetWidth; v.classList.add(klasa);
+  v.addEventListener('animationend', () => v.classList.remove(klasa), { once: true });
+}, { passive: true });
+document.addEventListener('touchcancel', () => { dotyk = null; }, { passive: true });
 
 // ===== Formularz: lista ćwiczeń =====
 function renderSelecty() {
