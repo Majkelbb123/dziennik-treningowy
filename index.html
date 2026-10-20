@@ -403,7 +403,7 @@ body.z-przerwa .app { padding-bottom: 110px; }
   <nav class="zakladki" role="tablist">
     <button role="tab" id="tab-trening" aria-controls="v-trening" aria-selected="false">Trening</button>
     <button role="tab" id="tab-wyniki" aria-controls="v-wyniki" aria-selected="true">Wyniki</button>
-    <button role="tab" id="tab-treningi" aria-controls="v-treningi" aria-selected="false">Moje treningi</button>
+    <button role="tab" id="tab-treningi" aria-controls="v-treningi" aria-selected="false">Treningi</button>
     <button role="tab" id="tab-plan" aria-controls="v-plan" aria-selected="false">Plan<span class="dl"> treningowy</span></button>
   </nav>
 
@@ -1526,7 +1526,7 @@ function htmlStartuTreningu() {
   }
   const grupy = cwiczeniaWgTreningu();
   if (!grupy.length) return h + `<section class="panel"><h2>Zacznij trening</h2>
-    <p class="pusto">Nie masz jeszcze ćwiczeń. Dodaj je w zakładce „Moje treningi” — potem wróć tutaj.</p></section>`;
+    <p class="pusto">Nie masz jeszcze ćwiczeń. Dodaj je w zakładce „Treningi” — potem wróć tutaj.</p></section>`;
   const d = plan?.[DNI[DZIS_IDX][0]];
   const zPlanu = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);
   // kiedy ostatnio robiłeś coś z danej grupy
@@ -1587,7 +1587,7 @@ function htmlWyboruTreningu() {
           <span class="typ ${esc(c.typ)}"></span>${esc(c.nazwa)}${w.has(c.nazwa) ? '<small>już jest</small>' : ''}</button>`).join('')}
         ${cw.some(c => !w.has(c.nazwa)) ? `<p style="margin: 6px 0 0;"><button type="button" class="btn cichy maly" data-tr-dodaj-grupe="${esc(t)}">+ Cały trening ${esc(t)}</button></p>` : ''}
       </div></details>`).join('')}</div>
-    <p class="pusto" style="margin-top: 10px; font-size: .9rem;">Nowe ćwiczenie dodasz w zakładce „Moje treningi”.</p>
+    <p class="pusto" style="margin-top: 10px; font-size: .9rem;">Nowe ćwiczenie dodasz w zakładce „Treningi”.</p>
   </section>`;
 }
 
