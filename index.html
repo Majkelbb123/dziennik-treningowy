@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trening">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body>
+<title>Dziennik Treningowy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Układ: wąska kolumna jak notes treningowy, zakładki u góry; kolory typów ćwiczeń = kolory talerzy olimpijskich */
+:root {
+  --bg: #EDF0EE;
+  --surface: #FFFFFF;
+  --ink: #16201C;
+  --muted: #5A6863;
+  --line: #D3DAD7;
+  --accent: #1D58C4;
+  --accent-ink: #FFFFFF;
+  --pr: #8A6A00;
+  --pr-bg: #FFF0BF;
+  --danger: #B8322A;
+  --t-ciezar: #1D58C4;
+  --t-powtorzenia: #C8352B;
+  --t-czas: #D9A400;
+  --t-cardio: #2B8A57;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #18201D; --ink: #E7EEEB; --muted: #94A39E; --line: #2A3531;
+    --accent: #6A95F2; --accent-ink: #0C1220; --pr: #F2C94C; --pr-bg: #3A3110; --danger: #F0675C;
+    --t-ciezar: #6A95F2; --t-powtorzenia: #EE6A5F; --t-czas: #F2C94C; --t-cardio: #4CC283;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #18201D; --ink: #E7EEEB; --muted: #94A39E; --line: #2A3531;
+  --accent: #6A95F2; --accent-ink: #0C1220; --pr: #F2C94C; --pr-bg: #3A3110; --danger: #F0675C;
+  --t-ciezar: #6A95F2; --t-powtorzenia: #EE6A5F; --t-czas: #F2C94C; --t-cardio: #4CC283;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--bg);
+}
+.app {
+  max-width: 980px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+
+/* Nagłówek */
+header h1 {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: clamp(2rem, 7vw, 3.2rem); line-height: .95; letter-spacing: .01em; margin: 0;
+  text-wrap: balance;
+}
+header .data { color: var(--muted); margin: 6px 0 0; }
+
+/* Zakładki (dwa "okienka") */
+.zakladki {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); padding-block: 14px 10px; display: flex; gap: 6px;
+}
+.zakladki button {
+  flex: 1; font-family: var(--font-display); font-weight: 600; font-size: 1.15rem;
+  text-transform: uppercase; letter-spacing: .04em; padding: 10px 12px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--muted);
+  border-radius: 8px; cursor: pointer;
+}
+.zakladki button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* Sekcje */
+.siatka { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 820px) { .siatka.dwie { grid-template-columns: 1.05fr 1fr; align-items: start; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+.panel h2 {
+  font-family: var(--font-display); font-weight: 700; text-transform: uppercase;
+  font-size: 1.35rem; letter-spacing: .03em; margin: 0 0 12px;
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.panel h2 small { font-family: var(--font-body); font-weight: 500; font-size: .85rem; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.pusto { color: var(--muted); margin: 0; }
+
+/* Formularze */
+label { display: grid; gap: 4px; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); min-width: 0; }
+input, select {
+  font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
+  border: 1.5px solid var(--line); border-radius: 7px; padding: 9px 10px; width: 100%; min-width: 0;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+form { display: grid; gap: 12px; }
+.rzad { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.btn {
+  font: inherit; font-weight: 600; border-radius: 7px; padding: 10px 14px; cursor: pointer;
+  border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+}
+.btn.cichy { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.maly { padding: 5px 10px; font-size: .9rem; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.x {
+  font: inherit; background: transparent; border: 0; color: var(--muted); cursor: pointer;
+  padding: 4px 8px; border-radius: 6px; font-size: 1.1rem; line-height: 1;
+}
+.x:hover { color: var(--danger); }
+.x.potwierdz { color: var(--danger); font-size: .85rem; font-weight: 600; }
+
+.serie { display: grid; gap: 8px; }
+.seria { display: grid; grid-template-columns: 4.2rem 1fr 1fr auto; gap: 8px; align-items: end; }
+.seria.jedno { grid-template-columns: 4.2rem 1fr auto; }
+.seria .nr { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--muted); padding-bottom: 9px; }
+.komunikat { margin: 0; font-weight: 600; min-height: 1.4em; }
+.komunikat.ok { color: var(--t-cardio); }
+.komunikat.blad { color: var(--danger); }
+.komunikat.rekord { color: var(--pr); }
+details.nowe summary { cursor: pointer; color: var(--accent); font-weight: 600; margin-top: 4px; }
+details.nowe .rzad { margin-top: 10px; }
+
+/* Typy ćwiczeń — kropka w kolorze talerza */
+.typ { display: inline-block; width: .7em; height: .7em; border-radius: 50%; flex: none; }
+.typ.ciezar { background: var(--t-ciezar); }
+.typ.powtorzenia { background: var(--t-powtorzenia); }
+.typ.czas { background: var(--t-czas); }
+.typ.cardio { background: var(--t-cardio); }
+
+/* Dziś w planie */
+.dzis { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px; }
+.dzis .etyk { font-weight: 600; margin-right: 4px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: .9rem; cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); }
+
+/* Rekordy */
+.rekordy { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.rekord { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.rekord .nazwa { display: flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+.rekord .nazwa span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rekord .wart { font-family: var(--font-display); font-weight: 700; font-size: 1.9rem; line-height: 1.05; }
+.rekord .wart small { font-size: 1rem; color: var(--muted); font-weight: 600; margin-left: 3px; }
+.rekord .kiedy { font-size: .8rem; color: var(--muted); }
+
+/* Wykres */
+.wykres-gora { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin-bottom: 10px; }
+.wykres-gora label { flex: 1 1 200px; }
+/* .wykres-box = każde miejsce z wykresem (zakładka Wyniki i Moje treningi) */
+.wykres-box { width: 100%; min-height: 60px; }
+.wykres-box svg { display: block; overflow: visible; }
+.wykres-box text { fill: var(--muted); font-family: var(--font-body); font-size: 12px; }
+.wykres-box .siatka-y { stroke: var(--line); stroke-width: 1; }
+.wykres-box .linia { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.wykres-box .pole { fill: var(--accent); opacity: .12; }
+.wykres-box .punkt { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.wykres-box .ostatni { fill: var(--accent); }
+.wykres-box text.etyk-ost { fill: var(--ink); font-weight: 600; font-size: 13px; }
+
+/* Historia */
+.dzien + .dzien { margin-top: 16px; }
+.dzien h3 {
+  font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  font-size: 1.05rem; color: var(--muted); margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--line);
+}
+.wpis { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: start; padding: 8px 0; }
+.wpis + .wpis { border-top: 1px dashed var(--line); }
+.wpis .typ { margin-top: .45em; }
+.wpis .tresc { min-width: 0; }
+.wpis .nazwa { font-weight: 600; }
+.wpis .opis { color: var(--ink); overflow-wrap: anywhere; }
+.wpis .notatka { color: var(--muted); font-size: .9rem; font-style: italic; }
+.znacznik { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 1px 7px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
+.znacznik.pr { background: var(--pr-bg); color: var(--pr); }
+.znacznik.przyklad { border: 1px solid var(--line); color: var(--muted); }
+.przyklady { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: .92rem; }
+
+/* Plan treningowy */
+.plan { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.dzien-planu { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.dzien-planu.dzisiaj { border: 2px solid var(--accent); }
+.dzien-planu .glowa { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dzien-planu h3 { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 1.3rem; margin: 0; letter-spacing: .03em; }
+.dzien-planu .chip-dzis { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.dzien-planu .tytul { font-weight: 600; }
+.pozycje { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pozycja { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; }
+.pozycja .tresc { min-width: 0; }
+.pozycja .cel { color: var(--muted); font-size: .9rem; display: block; overflow-wrap: anywhere; }
+.dodaj-pozycje { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: end; }
+@media (max-width: 420px) { .dodaj-pozycje { grid-template-columns: 1fr 1fr; } .dodaj-pozycje .btn { grid-column: 1 / -1; } }
+.baner { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--danger); color: var(--danger); margin-bottom: 14px; }
+.rekord .wart { overflow-wrap: anywhere; }
+@media (max-width: 480px) { .zakladki button { font-size: 1rem; padding: 8px 6px; letter-spacing: .02em; } }
+
+/* Moje treningi: lista ćwiczeń */
+.lista-cw { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+/* Moje treningi: rozwijane grupy (push, pull, nogi…) */
+.treningi-lista { display: grid; gap: 10px; }
+details.trening { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+details.trening > summary {
+  list-style: none; cursor: pointer; padding: 14px 16px;
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; align-items: center;
+}
+details.trening > summary::-webkit-details-marker { display: none; }
+details.trening .chev { grid-row: span 2; font-size: 1.5rem; line-height: 1; color: var(--muted); }
+details.trening[open] .chev { transform: rotate(90deg); }
+details.trening .tr-nazwa { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; text-transform: uppercase; letter-spacing: .03em; line-height: 1.1; overflow-wrap: anywhere; }
+details.trening .tr-info { color: var(--muted); font-size: .9rem; }
+details.trening .lista-cw { padding: 0 12px 12px; }
+details.trening .cw-wiersz { background: var(--bg); }
+.cw-wiersz.brak { cursor: default; }
+.cw-wiersz.brak:hover { border-color: var(--line); }
+@media (prefers-reduced-motion: no-preference) { details.trening .chev { transition: transform .15s; } }
+/* Formularz ćwiczenia */
+.form-cw { display: grid; gap: 12px; margin-top: 10px; }
+.przyciski { display: flex; gap: 8px; flex-wrap: wrap; }
+.nowe-panel > summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.dodaj-do { margin: 0; padding: 0 12px 12px; }
+.lista-moich .cel { display: block; }
+/* Wiersz ćwiczenia w Moich treningach: przycisk wejścia + krzyżyk do usunięcia */
+.cw-li { display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: center; }
+.cw-li .x.potwierdz { max-width: 7.5rem; text-align: right; line-height: 1.2; }
+.btn.potwierdz { color: var(--danger); border-color: var(--danger); }
+.wpis-akcje { display: flex; gap: 2px; align-items: center; }
+
+/* Wybór ćwiczenia w formularzu wyniku: treningi rozwijają się w listę ćwiczeń */
+.wybor-cw { display: grid; gap: 4px; min-width: 0; }
+.wybor-cw .etyk { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.wybor-przycisk {
+  font: inherit; font-size: 16px; color: var(--ink); background: var(--bg); text-align: left; cursor: pointer;
+  border: 1.5px solid var(--line); border-radius: 7px; padding: 9px 10px; width: 100%; min-width: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.wybor-przycisk[aria-expanded="true"] { border-color: var(--accent); }
+.wybor-przycisk:disabled { cursor: not-allowed; opacity: .7; }
+#f-cw-nazwa { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.wybor-lista { border: 1.5px solid var(--accent); border-radius: 8px; background: var(--surface); padding: 6px; display: grid; gap: 2px; max-height: 380px; overflow-y: auto; }
+.wl-trening {
+  width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; text-transform: uppercase; letter-spacing: .03em;
+  background: transparent; border: 0; color: var(--ink); padding: 9px 8px; border-radius: 6px;
+}
+.wl-trening small { margin-left: auto; font-family: var(--font-body); font-weight: 500; font-size: .82rem; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.wl-trening .chev { color: var(--muted); font-size: 1.3rem; line-height: 1; }
+.wl-trening[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.wl-cw { display: grid; gap: 2px; padding: 0 0 6px 24px; }
+.wl-opcja { display: flex; align-items: center; gap: 8px; text-align: left; font: inherit; background: transparent; border: 0; color: var(--ink); padding: 9px 10px; border-radius: 6px; cursor: pointer; }
+.wl-opcja:hover, .wl-trening:hover { background: var(--bg); }
+.wl-opcja[aria-current="true"] { background: var(--accent); color: var(--accent-ink); }
+@media (prefers-reduced-motion: no-preference) { .wl-trening .chev { transition: transform .15s; } }
+.zmien-tr { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 0 12px 10px; }
+.zmien-tr input { flex: 1 1 140px; width: auto; }
+.panel.edycja-wyniku { border: 2px solid var(--accent); }
+.cw-wiersz {
+  width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; text-align: left;
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; cursor: pointer;
+}
+.cw-wiersz:hover { border-color: var(--accent); }
+.cw-wiersz .tresc { min-width: 0; }
+.cw-wiersz .nazwa { font-weight: 600; display: block; }
+.cw-wiersz .cel { color: var(--muted); font-size: .9rem; }
+.cw-wiersz .strzalka { font-size: 1.6rem; line-height: 1; color: var(--muted); }
+
+/* Moje treningi: kalendarz */
+.kal-gora { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.kal-gora strong { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.kal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.kal-dn { text-align: center; font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding-bottom: 4px; }
+.dzien-kal {
+  display: flex; align-items: center; justify-content: center; min-height: 40px; border-radius: 8px;
+  font: inherit; color: var(--muted); border: 1.5px solid transparent; background: transparent; padding: 0;
+}
+.dzien-kal.dzis { border-color: var(--line); color: var(--ink); }
+.dzien-kal.byl { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--ink); font-weight: 700; cursor: pointer; }
+.dzien-kal.byl:hover { border-color: var(--accent); }
+.dzien-kal.wybrany { background: var(--accent); color: var(--accent-ink); }
+
+/* Moje treningi: tabela serii */
+.tabela-box { overflow-x: auto; }
+.tabela-box + .tabela-box { margin-top: 16px; }
+.tabela { width: 100%; border-collapse: collapse; }
+.tabela th { text-align: left; font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px; border-bottom: 1.5px solid var(--line); }
+.tabela td { padding: 9px 8px; border-bottom: 1px solid var(--line); }
+.tabela tfoot td { font-weight: 600; border-bottom: 0; }
+.tabela-box .wpis-tytul { font-weight: 600; margin: 0 0 4px; color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
+.tabela-box .notatka { color: var(--muted); font-style: italic; margin: 6px 0 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .chip, .zakladki button { transition: background-color .15s, border-color .15s, color .15s; }
+}
+</style>
+
+<div class="app">
+  <header>
+    <h1>Dziennik treningowy</h1>
+    <p class="data" id="dzisiejsza-data"></p>
+  </header>
+
+  <nav class="zakladki" role="tablist">
+    <button role="tab" id="tab-wyniki" aria-controls="v-wyniki" aria-selected="true">Wyniki</button>
+    <button role="tab" id="tab-treningi" aria-controls="v-treningi" aria-selected="false">Moje treningi</button>
+    <button role="tab" id="tab-plan" aria-controls="v-plan" aria-selected="false">Plan treningowy</button>
+  </nav>
+
+  <div id="baner" class="baner" hidden></div>
+
+  <!-- OKIENKO 1: WYNIKI -->
+  <main id="v-wyniki" role="tabpanel" aria-labelledby="tab-wyniki">
+    <div class="siatka dwie">
+      <section class="panel">
+        <h2 id="f-tytul">Zapisz wynik</h2>
+        <div class="dzis" id="dzis-w-planie"></div>
+        <form id="f-wynik" novalidate>
+          <div class="rzad">
+            <label>Data <input type="date" id="f-data"></label>
+            <div class="wybor-cw">
+              <span class="etyk" id="f-cw-etyk">Ćwiczenie</span>
+              <button type="button" class="wybor-przycisk" id="f-cw-przycisk" aria-expanded="false" aria-controls="f-cw-lista" aria-labelledby="f-cw-etyk f-cw-nazwa">
+                <span id="f-cw-nazwa">Wybierz ćwiczenie</span><span aria-hidden="true">▾</span></button>
+              <!-- ukryte pole: trzyma wybrane ćwiczenie (reszta kodu czyta je jak wcześniej) -->
+              <select id="f-cw" hidden></select>
+            </div>
+          </div>
+          <div id="f-cw-lista" class="wybor-lista" hidden></div>
+          <div id="f-pola"></div>
+          <label>Notatka (opcjonalnie) <input id="f-notatka" placeholder="np. lekko, dobra technika" maxlength="200"></label>
+          <div class="przyciski">
+            <button class="btn" type="submit" id="f-zapisz">Zapisz wynik</button>
+            <button class="btn cichy" type="button" id="f-anuluj" hidden>Anuluj edycję</button>
+          </div>
+          <p class="komunikat" id="f-komunikat" role="status"></p>
+        </form>
+        <details class="nowe" id="nowe-cw">
+          <summary id="nowe-cw-tytul">Twoje ćwiczenia: dodaj lub usuń</summary>
+          <div id="n-formularz" class="form-cw"></div>
+          <datalist id="lista-treningow"></datalist>
+          <ul class="pozycje lista-moich" id="lista-cw" style="margin-top: 16px;"></ul>
+        </details>
+      </section>
+
+      <section class="panel">
+        <h2>Rekordy <small>najlepszy wynik w każdym ćwiczeniu</small></h2>
+        <div id="rekordy" class="rekordy"><p class="pusto">Ładowanie…</p></div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Postęp</h2>
+      <div class="wykres-gora">
+        <label>Ćwiczenie <select id="w-cw"></select></label>
+      </div>
+      <div id="wykres" class="wykres-box"><p class="pusto">Ładowanie…</p></div>
+    </section>
+
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Historia treningów</h2>
+      <div id="przyklady" class="przyklady" hidden>
+        <span>Wpisy oznaczone „przykład” są pokazowe.</span>
+        <button class="btn cichy maly" type="button" id="usun-przyklady">Usuń przykładowe wyniki</button>
+      </div>
+      <div id="historia"><p class="pusto">Ładowanie…</p></div>
+      <p style="margin: 14px 0 0;"><button class="btn cichy maly" type="button" id="wiecej" hidden>Pokaż starsze</button></p>
+    </section>
+
+    <!-- Kopia zapasowa: widoczna tylko w wersji z zapisem w przeglądarce (GitHub Pages) -->
+    <section class="panel" id="kopia" style="margin-top: 16px;" hidden>
+      <h2>Kopia zapasowa <small>dane są zapisane tylko w tej przeglądarce</small></h2>
+      <p class="pusto" id="kopia-info"></p>
+      <div class="przyciski" style="margin-top: 12px;">
+        <button class="btn" type="button" id="kopia-zapisz">Zapisz kopię do pliku</button>
+        <button class="btn cichy" type="button" id="kopia-wczytaj">Wczytaj kopię z pliku</button>
+        <input type="file" id="kopia-plik" accept=".json,application/json" hidden>
+      </div>
+      <p class="komunikat" id="kopia-kom" role="status" style="margin-top: 10px;"></p>
+      <div class="przyciski">
+        <button class="btn" type="button" id="kopia-potwierdz" hidden>Tak, wczytaj</button>
+        <button class="btn cichy" type="button" id="kopia-anuluj" hidden>Anuluj</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- OKIENKO 2: MOJE TRENINGI (lista ćwiczeń → kalendarz → serie) -->
+  <main id="v-treningi" role="tabpanel" aria-labelledby="tab-treningi" hidden>
+    <details class="panel nowe-panel" id="m-panel" style="margin-bottom: 12px;">
+      <summary id="m-panel-tytul">+ Nowe ćwiczenie</summary>
+      <div id="m-formularz" class="form-cw"></div>
+    </details>
+    <div id="treningi"><p class="pusto">Ładowanie…</p></div>
+  </main>
+
+  <!-- OKIENKO 3: PLAN TRENINGOWY -->
+  <main id="v-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
+    <div id="plan" class="plan"><p class="pusto">Ładowanie…</p></div>
+  </main>
+</div>
+
+<script>
+// ===== Stałe =====
+const TYPY = {
+  ciezar:      { nazwa: 'Ciężar',      jedn: 'kg' },
+  powtorzenia: { nazwa: 'Powtórzenia', jedn: 'powt.' },
+  czas:        { nazwa: 'Na czas',     jedn: 's' },
+  cardio:      { nazwa: 'Cardio',      jedn: 'km' },
+};
+const DNI = [['pon','Poniedziałek'],['wt','Wtorek'],['sr','Środa'],['czw','Czwartek'],['pt','Piątek'],['sob','Sobota'],['nd','Niedziela']];
+const DZIS_IDX = (new Date().getDay() + 6) % 7; // 0 = poniedziałek
+
+// ===== Stan strony (dane z bazy) =====
+let db = null;
+let cwiczenia = null;   // [{id, nazwa, typ}]
+let wyniki = null;      // [{id, data, cwiczenie, typ, serie|km+czasSek, notatka, przyklad}]
+let plan = null;        // {pon: {tytul, pozycje:[{cwiczenie, cel}]}, ...}
+let serie = [{}];       // wiersze serii w formularzu
+let ileDni = 10;        // ile dni historii pokazać
+const szkic = {};       // to, co wpisujesz w planie, zanim zapiszesz
+
+// ===== Pomocnicze =====
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const dzisISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const naDate = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
+const ladnaData = iso => naDate(iso).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+const krotkaData = iso => naDate(iso).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+// "57,5 kg" → 57.5 (przecinek zamieniamy na kropkę, litery i spacje pomijamy)
+const liczba = v => { const n = Number(String(v ?? '').replace(',', '.').replace(/[^\d.-]/g, '')); return Number.isFinite(n) ? n : NaN; };
+// Ciężar z plusem: "20+20" → 40, "60+2,5" → 62.5
+const sumaKg = v => String(v ?? '').split('+').reduce((suma, czesc) => suma + liczba(czesc), 0);
+const fmt = n => (Math.round(n * 100) / 100).toLocaleString('pl-PL');
+const fmtCzas = sek => { sek = Math.round(sek); const h = Math.floor(sek/3600), m = Math.floor(sek%3600/60), s = sek%60;
+  return (h ? h + ':' + String(m).padStart(2,'0') : m) + ':' + String(s).padStart(2,'0'); };
+// "27:30" albo "1:05:00" → sekundy
+const parsujCzas = t => { const cz = String(t).trim().split(':').map(Number); if (!cz.length || cz.some(x => !Number.isFinite(x) || x < 0)) return NaN;
+  return cz.reduce((acc, x) => acc * 60 + x, 0); };
+const slug = s => s.toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('cw-' + Date.now());
+const cwPoNazwie = n => (cwiczenia || []).find(c => c.nazwa === n);
+
+// Jedna liczba opisująca wynik — z niej liczymy rekordy i rysujemy wykres
+function wartosc(w) {
+  if (w.typ === 'cardio') return Number(w.km) || 0;
+  const k = w.typ === 'ciezar' ? 'kg' : w.typ === 'powtorzenia' ? 'powt' : 'sek';
+  return Math.max(0, ...(w.serie || []).map(s => Number(s[k]) || 0));
+}
+// Najlepsza seria w ćwiczeniu z ciężarem: najpierw najwięcej kg, potem najwięcej powtórzeń
+function najlepszaSeria(w) {
+  return [...(w.serie || [])].sort((a, b) => (b.kg - a.kg) || (b.powt - a.powt))[0] || { kg: 0, powt: 0 };
+}
+// Czytelny opis wyniku, np. "3 × 8 × 60 kg"
+function opis(w) {
+  const s = w.serie || [];
+  if (w.typ === 'cardio') {
+    const tempo = w.km > 0 && w.czasSek ? ' (' + fmtCzas(w.czasSek / w.km) + '/km)' : '';
+    return fmt(w.km) + ' km' + (w.czasSek ? ' w ' + fmtCzas(w.czasSek) : '') + tempo;
+  }
+  if (w.typ === 'ciezar') {
+    const kg = x => x.kgTekst ? `${x.kgTekst} = ${fmt(x.kg)}` : fmt(x.kg);   // pokaż też, jak było wpisane
+    const wszystkieTakieSame = s.every(x => x.kg === s[0].kg && x.powt === s[0].powt && x.kgTekst === s[0].kgTekst);
+    if (wszystkieTakieSame && s.length) return s.length + ' × ' + s[0].powt + ' × ' + kg(s[0]) + ' kg';
+    return s.map(x => kg(x) + ' kg × ' + x.powt).join(' · ');
+  }
+  if (w.typ === 'powtorzenia') return s.map(x => x.powt).join(' · ') + ' powt.';
+  return s.map(x => fmt(x.sek)).join(' · ') + ' s';
+}
+// Wyniki od najstarszego do najnowszego
+const chronologicznie = () => [...(wyniki || [])].sort((a, b) => a.data.localeCompare(b.data) || (a.utworzono || 0) - (b.utworzono || 0));
+
+// Które wpisy pobiły wcześniejszy rekord
+function idRekordow() {
+  const najlepsze = new Map(), pr = new Set();
+  for (const w of chronologicznie()) {
+    const v = wartosc(w), byl = najlepsze.get(w.cwiczenie);
+    if (byl !== undefined && v > byl) pr.add(w.id);
+    if (byl === undefined || v > byl) najlepsze.set(w.cwiczenie, v);
+  }
+  return pr;
+}
+
+// ===== Zakładki =====
+const ZAKLADKI = ['wyniki', 'treningi', 'plan'];
+function pokazZakladke(nazwa) {
+  if (!ZAKLADKI.includes(nazwa)) nazwa = 'wyniki';
+  // pokazujemy jedną zakładkę, resztę chowamy
+  for (const z of ZAKLADKI) {
+    $('tab-' + z).setAttribute('aria-selected', String(z === nazwa));
+    $('v-' + z).hidden = z !== nazwa;
+  }
+  try { localStorage.setItem('zakladka', nazwa); } catch (e) {}
+}
+for (const z of ZAKLADKI) $('tab-' + z).onclick = () => pokazZakladke(z);
+
+// ===== Formularz: lista ćwiczeń =====
+function renderSelecty() {
+  const lista = cwiczenia || [];
+  for (const id of ['f-cw', 'w-cw']) {
+    const sel = $(id), poprzedni = sel.value;
+    // opcje pogrupowane po treningach (w liście wykresu widać nagłówki: push, nogi…)
+    sel.innerHTML = lista.length
+      ? cwiczeniaWgTreningu().map(([t, cw]) => `<optgroup label="${esc(t)}">${cw.map(c => `<option value="${esc(c.nazwa)}">${esc(c.nazwa)}</option>`).join('')}</optgroup>`).join('')
+      : '<option value="">Brak ćwiczeń — dodaj poniżej</option>';
+    if (lista.some(c => c.nazwa === poprzedni)) sel.value = poprzedni;
+  }
+  // Świeżo dodane ćwiczenie od razu wybieramy w formularzu wyniku
+  if (doWybrania && lista.some(c => c.nazwa === doWybrania)) { $('f-cw').value = doWybrania; doWybrania = null; serie = [{}]; }
+  // Lista Twoich ćwiczeń z możliwością usunięcia
+  $('nowe-cw-tytul').textContent = lista.length ? `Twoje ćwiczenia (${lista.length}): dodaj lub usuń` : 'Dodaj swoje pierwsze ćwiczenie';
+  $('lista-cw').innerHTML = lista.map(c => `<li class="pozycja" style="grid-template-columns: auto 1fr auto auto;">
+    <span class="typ ${esc(c.typ)}"></span>
+    <span class="tresc">${esc(c.nazwa)}
+      <span class="cel">${[TYPY[c.typ]?.nazwa, c.trening].filter(Boolean).map(esc).join(' · ')}</span>
+      </span>
+    <button type="button" class="btn cichy maly" data-edytuj-cw="${esc(c.id)}">Edytuj</button>
+    <button type="button" class="x" data-usun-cw="${esc(c.id)}" aria-label="Usuń ćwiczenie ${esc(c.nazwa)}">×</button></li>`).join('');
+  // Brak ćwiczeń? Od razu pokaż pole do dodania pierwszego
+  if (!lista.length) $('nowe-cw').open = true;
+}
+// Podpowiedzi nazw treningów: te już użyte w ćwiczeniach + nazwy dni z planu (np. "push")
+function nazwyTreningow() {
+  const z = new Set();
+  for (const c of cwiczenia || []) if (c.trening) z.add(c.trening);
+  for (const d of Object.values(plan || {})) if (d.tytul) z.add(d.tytul);
+  return [...z].sort((a, b) => a.localeCompare(b, 'pl'));
+}
+function renderListaTreningow() {
+  $('lista-treningow').innerHTML = nazwyTreningow().map(t => `<option value="${esc(t)}"></option>`).join('');
+}
+// Edycja i usuwanie ćwiczenia z listy (zapisane wyniki zostają w historii)
+$('lista-cw').addEventListener('click', async e => {
+  const ed = e.target.closest('[data-edytuj-cw]');
+  if (ed) { edytujCwiczenie('n', ed.dataset.edytujCw); $('n-formularz').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  const b = e.target.closest('[data-usun-cw]'); if (!b || !db) return;
+  if (!b.classList.contains('potwierdz')) {
+    b.classList.add('potwierdz'); b.textContent = 'Usunąć?';
+    setTimeout(() => { if (b.isConnected) { b.classList.remove('potwierdz'); b.textContent = '×'; } }, 3000);
+    return;
+  }
+  b.disabled = true;
+  try { await db.doc('cwiczenia/' + b.dataset.usunCw).delete(); } catch { b.disabled = false; }
+});
+
+// ===== Formularz: pola zależne od rodzaju ćwiczenia =====
+// ===== Rozwijany wybór ćwiczenia: trening → jego ćwiczenia =====
+const BEZ_TRENINGU = 'Bez treningu';
+const rozwinieteWybor = new Set();   // które treningi są rozwinięte na liście wyboru
+// [["nogi", [ćwiczenia…]], ["push", […]], …] — alfabetycznie, "bez treningu" na końcu
+function cwiczeniaWgTreningu() {
+  const m = new Map();
+  for (const c of cwiczenia || []) {
+    const t = (c.trening || '').trim() || BEZ_TRENINGU;
+    if (!m.has(t)) m.set(t, []);
+    m.get(t).push(c);
+  }
+  return [...m].sort((a, b) => (a[0] === BEZ_TRENINGU) - (b[0] === BEZ_TRENINGU) || a[0].localeCompare(b[0], 'pl'));
+}
+function renderWyborCw() {
+  const wybrane = cwPoNazwie($('f-cw').value);
+  $('f-cw-nazwa').textContent = wybrane ? wybrane.nazwa + (wybrane.trening ? ' · ' + wybrane.trening : '') : 'Wybierz ćwiczenie';
+  $('f-cw-przycisk').disabled = $('f-cw').disabled || !(cwiczenia || []).length;
+  const lista = $('f-cw-lista');
+  if (lista.hidden) return;
+  lista.innerHTML = cwiczeniaWgTreningu().map(([t, cw]) => {
+    const otwarty = rozwinieteWybor.has(t);
+    return `<div>
+      <button type="button" class="wl-trening" data-wl-tr="${esc(t)}" aria-expanded="${otwarty}">
+        <span class="chev" aria-hidden="true">›</span>${esc(t)}<small>${cw.length} ${odmiana(cw.length, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}</small></button>
+      ${otwarty ? `<div class="wl-cw">${cw.map(c => `<button type="button" class="wl-opcja" data-wl-cw="${esc(c.nazwa)}" aria-current="${c === wybrane}">
+          <span class="typ ${esc(c.typ)}"></span>${esc(c.nazwa)}</button>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+function pokazListeWyboru(pokaz) {
+  $('f-cw-lista').hidden = !pokaz;
+  $('f-cw-przycisk').setAttribute('aria-expanded', String(pokaz));
+  if (pokaz) {
+    // na start rozwijamy trening aktualnie wybranego ćwiczenia
+    const w = cwPoNazwie($('f-cw').value);
+    if (w) rozwinieteWybor.add((w.trening || '').trim() || BEZ_TRENINGU);
+  }
+  renderWyborCw();
+}
+$('f-cw-przycisk').onclick = () => pokazListeWyboru($('f-cw-lista').hidden);
+$('f-cw-lista').addEventListener('click', e => {
+  // klik wewnątrz listy nie może dotrzeć do "klik poza listą" niżej — lista się przerysowuje
+  // i kliknięty element znika z dokumentu, więc wyglądałby na klik "poza"
+  e.stopPropagation();
+  const tr = e.target.closest('[data-wl-tr]');
+  if (tr) {                                   // klik w trening: rozwiń / zwiń
+    const t = tr.dataset.wlTr;
+    if (!rozwinieteWybor.delete(t)) rozwinieteWybor.add(t);
+    return renderWyborCw();
+  }
+  const op = e.target.closest('[data-wl-cw]');
+  if (op) {                                   // klik w ćwiczenie: wybierz i zamknij listę
+    $('f-cw').value = op.dataset.wlCw;
+    $('f-cw').dispatchEvent(new Event('change'));   // reszta strony reaguje jak na zwykły wybór
+    pokazListeWyboru(false);
+    $('f-pola').querySelector('input')?.focus();
+  }
+});
+// klik poza listą albo Escape zamyka listę
+document.addEventListener('click', e => {
+  if (!$('f-cw-lista').hidden && !e.target.closest('#f-cw-lista, #f-cw-przycisk')) pokazListeWyboru(false);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('f-cw-lista').hidden) { pokazListeWyboru(false); $('f-cw-przycisk').focus(); } });
+
+function renderPola(wyczysc) {
+  renderWyborCw();   // napis na przycisku wyboru zawsze zgodny z wybranym ćwiczeniem
+  const cw = cwPoNazwie($('f-cw').value), box = $('f-pola');
+  if (!cw) { box.innerHTML = ''; return; }
+  if (cw.typ === 'cardio') {
+    // przy odświeżeniu zachowujemy to, co już wpisane (chyba że czyścimy formularz)
+    const km = wyczysc ? '' : ($('f-km')?.value ?? ''), czas = wyczysc ? '' : ($('f-czas')?.value ?? '');
+    box.innerHTML = `<div class="rzad">
+      <label>Dystans (km) <input id="f-km" placeholder="5,5" autocomplete="off" value="${esc(km)}"></label>
+      <label>Czas (mm:ss) <input id="f-czas" placeholder="27:30" autocomplete="off" value="${esc(czas)}"></label></div>`;
+    return;
+  }
+  // Ćwiczenia z seriami: każda seria to jeden wiersz
+  // Ciężar: zwykła klawiatura (żeby były + , .); powtórzenia i sekundy: same cyfry wystarczą
+  const pola = cw.typ === 'ciezar' ? [['kg','Ciężar (kg)','60 lub 20+20'],['powt','Powtórzenia','8']]
+             : cw.typ === 'powtorzenia' ? [['powt','Powtórzenia','10']] : [['sek','Czas (s)','60']];
+  box.innerHTML = `<div class="serie">` + serie.map((s, i) => `
+    <div class="seria ${pola.length === 1 ? 'jedno' : ''}">
+      <span class="nr">Seria ${i + 1}</span>
+      ${pola.map(([k, et, ph]) => `<label>${et}<input id="s-${i}-${k}" data-i="${i}" data-k="${k}" ${k === 'kg' ? '' : 'inputmode="numeric"'} autocomplete="off" placeholder="${ph}" value="${esc(s[k] ?? '')}"></label>`).join('')}
+      <button type="button" class="x" data-usun="${i}" aria-label="Usuń serię ${i + 1}" ${serie.length === 1 ? 'hidden' : ''}>×</button>
+    </div>`).join('') + `</div>
+    <p style="margin: 8px 0 0;"><button type="button" class="btn cichy maly" id="f-seria">+ Dodaj serię</button></p>`;
+}
+$('f-pola').addEventListener('input', e => {
+  const { i, k } = e.target.dataset;
+  if (i !== undefined) serie[i][k] = e.target.value;
+});
+// Przepisz do pamięci to, co NAPRAWDĘ widać w polach serii.
+// Ważne: przeglądarka potrafi wstawić wartości do pól sama (np. po odświeżeniu),
+// bez zdarzenia "input" — wtedy sama pamięć byłaby pusta.
+function wczytajSerieZPol() {
+  for (const el of $('f-pola').querySelectorAll('input[data-i]')) {
+    const { i, k } = el.dataset;
+    if (serie[i]) serie[i][k] = el.value;
+  }
+}
+$('f-pola').addEventListener('click', e => {
+  if (e.target.id === 'f-seria' || e.target.dataset.usun !== undefined) wczytajSerieZPol();
+  if (e.target.id === 'f-seria') {             // nowa seria kopiuje poprzednią — mniej pisania
+    serie.push({ ...serie[serie.length - 1] }); renderPola();
+    const ost = $('f-pola').querySelectorAll('.seria input'); ost[ost.length - (cwPoNazwie($('f-cw').value)?.typ === 'ciezar' ? 2 : 1)]?.focus();
+  }
+  if (e.target.dataset.usun !== undefined) { serie.splice(Number(e.target.dataset.usun), 1); renderPola(); }
+});
+$('f-cw').addEventListener('change', () => { serie = [{}]; renderPola(true); });
+
+// ===== Edycja zapisanego wyniku =====
+// Kliknięcie "Edytuj" wczytuje wynik do formularza powyżej; "Zapisz zmiany" nadpisuje ten sam wpis w bazie
+let edytowanyWynik = null;
+const naPole = n => String(n ?? '').replace('.', ',');   // 57.5 → "57,5" (tak, jak wpisujesz)
+function edytujWynik(id) {
+  const w = (wyniki || []).find(x => x.id === id); if (!w) return;
+  pokazZakladke('wyniki');
+  if (!cwPoNazwie(w.cwiczenie)) return komunikat('Tego ćwiczenia nie ma już na liście — nie da się edytować wyniku.', 'blad');
+  edytowanyWynik = w;
+  $('f-cw').value = w.cwiczenie; $('f-cw').disabled = true;   // ćwiczenia nie zmieniamy, tylko liczby
+  $('f-data').value = w.data;
+  $('f-notatka').value = w.notatka || '';
+  if (w.typ === 'cardio') {
+    renderPola(true);
+    $('f-km').value = naPole(w.km);
+    $('f-czas').value = w.czasSek ? fmtCzas(w.czasSek) : '';
+  } else {
+    const k = w.typ === 'ciezar' ? 'kg' : w.typ === 'powtorzenia' ? 'powt' : 'sek';
+    serie = (w.serie || []).map(s => w.typ === 'ciezar'
+      ? { kg: s.kgTekst || naPole(s.kg), powt: String(s.powt) }
+      : { [k]: naPole(s[k]) });
+    if (!serie.length) serie = [{}];
+    renderPola();
+  }
+  $('f-tytul').textContent = 'Edytujesz wynik';
+  $('f-zapisz').textContent = 'Zapisz zmiany';
+  $('f-anuluj').hidden = false;
+  $('f-wynik').closest('.panel').classList.add('edycja-wyniku');
+  komunikat(`Edytujesz: ${w.cwiczenie}, ${ladnaData(w.data)}`, '');
+  $('f-wynik').closest('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function koniecEdycjiWyniku() {
+  edytowanyWynik = null;
+  $('f-cw').disabled = false;
+  $('f-data').value = dzisISO(); $('f-notatka').value = '';
+  serie = [{}]; renderPola(true);
+  $('f-tytul').textContent = 'Zapisz wynik';
+  $('f-zapisz').textContent = 'Zapisz wynik';
+  $('f-anuluj').hidden = true;
+  $('f-wynik').closest('.panel').classList.remove('edycja-wyniku');
+}
+$('f-anuluj').onclick = () => { koniecEdycjiWyniku(); komunikat('Anulowano edycję.', ''); };
+
+function komunikat(tekst, klasa) { const k = $('f-komunikat'); k.textContent = tekst; k.className = 'komunikat ' + (klasa || ''); }
+
+// ===== Zapis wyniku do bazy =====
+$('f-wynik').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!db) return komunikat('Zapis jest teraz niedostępny.', 'blad');
+  const cw = cwPoNazwie($('f-cw').value);
+  if (!cw) return komunikat('Najpierw dodaj ćwiczenie.', 'blad');
+  const data = $('f-data').value || dzisISO();
+  const w = { data, cwiczenie: cw.nazwa, typ: cw.typ, notatka: $('f-notatka').value.trim(), utworzono: edytowanyWynik?.utworzono ?? Date.now() };
+
+  if (cw.typ === 'cardio') {
+    const km = liczba($('f-km').value), czas = $('f-czas').value.trim() ? parsujCzas($('f-czas').value) : 0;
+    if (!(km > 0)) return komunikat('Wpisz dystans w km, np. 5 albo 5,5.', 'blad');
+    if (Number.isNaN(czas)) return komunikat('Czas wpisz jako minuty:sekundy, np. 27:30.', 'blad');
+    w.km = km; if (czas) w.czasSek = czas;
+  } else {
+    wczytajSerieZPol();
+    const k = cw.typ === 'ciezar' ? 'kg' : cw.typ === 'powtorzenia' ? 'powt' : 'sek';
+    const czyste = serie.map(s => {
+      if (cw.typ !== 'ciezar') return { [k]: liczba(s[k]) };
+      const tekst = String(s.kg ?? '').trim();
+      const seria = { kg: sumaKg(tekst), powt: liczba(s.powt) };
+      if (tekst.includes('+')) seria.kgTekst = tekst.replace(/\s+/g, '');   // zapamiętaj "20+20"
+      return seria;
+    }).filter(s => (s.kg ?? 0) >= 0 && (s.powt ?? s[k]) > 0);
+    if (!czyste.length) return komunikat(cw.typ === 'ciezar' ? 'Wpisz ciężar i powtórzenia przynajmniej w jednej serii.' : 'Wpisz wynik przynajmniej w jednej serii.', 'blad');
+    w.serie = czyste;
+  }
+
+  // Czy to nowy rekord? (sprawdzamy przed zapisem)
+  const poprzednie = (wyniki || []).filter(x => x.cwiczenie === w.cwiczenie && x.id !== edytowanyWynik?.id).map(wartosc);
+  const rekord = poprzednie.length > 0 && wartosc(w) > Math.max(...poprzednie);
+
+  $('f-zapisz').disabled = true;
+  try {
+    if (edytowanyWynik) {
+      // edycja: nadpisujemy ten sam dokument (to samo id), zamiast dodawać nowy
+      await db.doc('wyniki/' + edytowanyWynik.id).set(w);
+      koniecEdycjiWyniku();
+      komunikat('Zapisano zmiany: ' + cw.nazwa + ', ' + opis(w), 'ok');
+    } else {
+      await db.collection('wyniki').add(w);
+      komunikat(rekord ? 'Nowy rekord! ' + cw.nazwa + ': ' + opis(w) : 'Zapisano: ' + cw.nazwa + ', ' + opis(w), rekord ? 'rekord' : 'ok');
+      serie = [{}]; $('f-notatka').value = ''; renderPola(true);
+    }
+    $('w-cw').value = cw.nazwa; rysujWykres();
+  } catch (err) {
+    komunikat(err?.code === 'quota_exceeded' ? 'Baza jest pełna — usuń stare wpisy.' : 'Nie udało się zapisać. Spróbuj jeszcze raz.', 'blad');
+  } finally { $('f-zapisz').disabled = false; }
+});
+
+// ===== Formularz ćwiczenia (dodawanie i edycja) =====
+// Ten sam formularz jest w dwóch miejscach: "n" = zakładka Wyniki, "m" = Moje treningi
+const edycja = { n: null, m: null };   // id edytowanego ćwiczenia (null = dodajemy nowe)
+let doWybrania = null;                  // nazwa nowego ćwiczenia do wybrania w formularzu wyniku
+
+function htmlFormularzaCw(p) {
+  return `<div class="rzad">
+      <label>Nazwa <input id="${p}-nazwa" placeholder="np. Wiosłowanie sztangą" maxlength="60" autocomplete="off"></label>
+      <label>Rodzaj
+        <select id="${p}-typ">
+          <option value="ciezar">Ciężar (kg × powt.)</option>
+          <option value="powtorzenia">Powtórzenia (np. pompki)</option>
+          <option value="czas">Na czas (np. deska)</option>
+          <option value="cardio">Cardio (km i czas)</option>
+        </select></label>
+    </div>
+    <label>Trening, do którego należy
+      <input id="${p}-trening" list="lista-treningow" placeholder="np. push, pull, nogi" maxlength="40" autocomplete="off"></label>
+    <div class="przyciski">
+      <button class="btn" type="button" id="${p}-dodaj">Dodaj ćwiczenie</button>
+      <button class="btn cichy" type="button" id="${p}-anuluj" hidden>Anuluj edycję</button>
+    </div>
+    <p class="komunikat" id="${p}-kom" role="status"></p>`;
+}
+const komCw = (p, tekst, klasa) => { const e = $(p + '-kom'); e.textContent = tekst; e.className = 'komunikat ' + (klasa || ''); };
+function wyczyscFormularzCw(p, zostawTrening) {
+  edycja[p] = null;
+  $(p + '-nazwa').value = ''; $(p + '-nazwa').disabled = false; $(p + '-typ').disabled = false;
+  if (!zostawTrening) $(p + '-trening').value = '';
+  $(p + '-dodaj').textContent = 'Dodaj ćwiczenie'; $(p + '-anuluj').hidden = true;
+  if (p === 'm') $('m-panel-tytul').textContent = '+ Nowe ćwiczenie';
+}
+function edytujCwiczenie(p, id) {
+  const c = (cwiczenia || []).find(x => x.id === id); if (!c) return;
+  edycja[p] = id;
+  // nazwę można zmienić (wyniki przepiszemy na nową); rodzaj tylko gdy nie ma wyników — inaczej serie by nie pasowały
+  const maWyniki = (wyniki || []).some(w => w.cwiczenie === c.nazwa);
+  $(p + '-nazwa').value = c.nazwa; $(p + '-nazwa').disabled = false;
+  $(p + '-typ').value = c.typ; $(p + '-typ').disabled = maWyniki;
+  $(p + '-trening').value = c.trening || '';
+  $(p + '-dodaj').textContent = 'Zapisz zmiany'; $(p + '-anuluj').hidden = false;
+  if (p === 'm') $('m-panel-tytul').textContent = 'Edytujesz: ' + c.nazwa;
+  komCw(p, 'Edytujesz: ' + c.nazwa + '. Możesz zmienić nazwę, ' + (maWyniki ? '' : 'rodzaj ') + 'i trening.', '');
+}
+async function zapiszCwiczenie(p) {
+  if (!db) return komCw(p, 'Zapis jest teraz niedostępny.', 'blad');
+  const nazwa = $(p + '-nazwa').value.trim(), typ = $(p + '-typ').value;
+  const trening = $(p + '-trening').value.trim();
+  if (edycja[p]) {           // zapis zmian w istniejącym ćwiczeniu
+    const c = (cwiczenia || []).find(x => x.id === edycja[p]);
+    if (!c) { wyczyscFormularzCw(p, false); return komCw(p, 'To ćwiczenie zostało już usunięte.', 'blad'); }
+    if (!nazwa) return komCw(p, 'Nazwa nie może być pusta.', 'blad');
+    const staraNazwa = c.nazwa, nowaNazwa = nazwa !== staraNazwa;
+    if (nowaNazwa && cwPoNazwie(nazwa)) return komCw(p, 'Ćwiczenie o takiej nazwie już istnieje.', 'blad');
+    $(p + '-dodaj').disabled = true;
+    try {
+      const zmiany = { trening };
+      if (nowaNazwa) zmiany.nazwa = nazwa;
+      if (!$(p + '-typ').disabled) zmiany.typ = typ;
+      await db.doc('cwiczenia/' + c.id).update(zmiany);
+      if (nowaNazwa) {
+        // wyniki i plan pamiętają ćwiczenie po NAZWIE — przepisujemy je na nową, żeby nic się nie zgubiło
+        for (const w of (wyniki || []).filter(w => w.cwiczenie === staraNazwa)) await db.doc('wyniki/' + w.id).update({ cwiczenie: nazwa });
+        for (const [dzien, d] of Object.entries(plan || {})) {
+          if ((d.pozycje || []).some(x => x.cwiczenie === staraNazwa))
+            await db.doc('plan/' + dzien).update({ pozycje: d.pozycje.map(x => x.cwiczenie === staraNazwa ? { ...x, cwiczenie: nazwa } : x) });
+        }
+        if (mtCw === staraNazwa) mtCw = nazwa;
+      }
+      wyczyscFormularzCw(p, false);
+      komCw(p, 'Zapisano zmiany: ' + nazwa, 'ok');
+    } catch { komCw(p, 'Nie udało się zapisać zmian.', 'blad'); }
+    finally { $(p + '-dodaj').disabled = false; }
+    return;
+  }
+  if (!nazwa) return komCw(p, 'Wpisz nazwę nowego ćwiczenia.', 'blad');
+  if (cwPoNazwie(nazwa)) return komCw(p, 'Takie ćwiczenie już jest na liście.', 'blad');
+  try {
+    await db.collection('cwiczenia').doc(slug(nazwa)).set({ nazwa, typ, trening });
+    wyczyscFormularzCw(p, true);   // trening zostaje — łatwiej dodać kilka ćwiczeń do tego samego
+    doWybrania = nazwa;
+    komCw(p, 'Dodano: ' + nazwa + (trening ? ' (trening: ' + trening + ')' : ''), 'ok');
+    $(p + '-nazwa').focus();
+  } catch { komCw(p, 'Nie udało się dodać ćwiczenia.', 'blad'); }
+}
+for (const p of ['n', 'm']) {
+  $(p + '-formularz').innerHTML = htmlFormularzaCw(p);
+  $(p + '-dodaj').onclick = () => zapiszCwiczenie(p);
+  $(p + '-anuluj').onclick = () => { wyczyscFormularzCw(p, false); komCw(p, '', ''); };
+}
+// Otwórz formularz w "Moich treningach": nowe ćwiczenie do danego treningu albo edycja
+function otworzFormularzM(trening, idDoEdycji) {
+  if (idDoEdycji) edytujCwiczenie('m', idDoEdycji);
+  else { wyczyscFormularzCw('m', false); $('m-trening').value = trening || ''; komCw('m', '', ''); }
+  $('m-panel').open = true;
+  $('m-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!idDoEdycji) $('m-nazwa').focus({ preventScroll: true });
+}
+
+// ===== Dziś w planie (skrót z drugiej zakładki) =====
+function renderDzis() {
+  const box = $('dzis-w-planie');
+  if (!plan) { box.innerHTML = ''; return; }
+  const [klucz, nazwaDnia] = DNI[DZIS_IDX], d = plan[klucz];
+  if (!d || !(d.pozycje || []).length) {
+    box.innerHTML = `<span class="etyk">${nazwaDnia}:</span><span class="pusto">${d?.tytul ? esc(d.tytul) : 'w planie nic na dziś'}</span>`;
+    return;
+  }
+  box.innerHTML = `<span class="etyk">Dziś${d.tytul ? ' · ' + esc(d.tytul) : ''}:</span>` +
+    d.pozycje.map(p => `<button type="button" class="chip" data-cw="${esc(p.cwiczenie)}"><span class="typ ${esc(cwPoNazwie(p.cwiczenie)?.typ || '')}"></span>${esc(p.cwiczenie)}</button>`).join('');
+}
+$('dzis-w-planie').addEventListener('click', e => {
+  const b = e.target.closest('[data-cw]'); if (!b) return;
+  wybierzCwiczenie(b.dataset.cw);
+});
+function wybierzCwiczenie(nazwa) {
+  if (!cwPoNazwie(nazwa)) return;
+  if (edytowanyWynik) koniecEdycjiWyniku();
+  pokazZakladke('wyniki');
+  $('f-cw').value = nazwa; serie = [{}]; renderPola();
+  $('f-wynik').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('f-pola').querySelector('input')?.focus({ preventScroll: true });
+}
+
+// ===== Rekordy =====
+function renderRekordy() {
+  const box = $('rekordy');
+  if (!wyniki || !cwiczenia) return;
+  const najlepsze = new Map();
+  for (const w of chronologicznie()) {
+    const v = wartosc(w), r = najlepsze.get(w.cwiczenie);
+    if (!r || v > r.v) najlepsze.set(w.cwiczenie, { v, w });
+  }
+  if (!najlepsze.size) { box.innerHTML = '<p class="pusto">Tu pojawi się Twój najlepszy wynik w każdym ćwiczeniu po zapisaniu pierwszego treningu.</p>'; return; }
+  box.innerHTML = [...najlepsze.values()].sort((a, b) => a.w.cwiczenie.localeCompare(b.w.cwiczenie, 'pl')).map(({ v, w }) => {
+    let wart, dod = '';
+    if (w.typ === 'ciezar') {
+      const s = najlepszaSeria(w);
+      // wynik z plusem (np. 20+20) pokazujemy tak, jak był wpisany, a sumę niżej
+      wart = `${s.kgTekst ? esc(s.kgTekst) : fmt(s.kg)}<small>kg</small>`;
+      dod = (s.kgTekst ? ` · razem ${fmt(s.kg)} kg` : '') + ` · ${s.powt} powt.`;
+    }
+    else if (w.typ === 'cardio') { wart = `${fmt(v)}<small>km</small>`; if (w.czasSek) dod = ` · ${fmtCzas(w.czasSek)}`; }
+    else wart = `${fmt(v)}<small>${TYPY[w.typ].jedn}</small>`;
+    return `<div class="rekord">
+      <div class="nazwa"><span class="typ ${esc(w.typ)}"></span><span title="${esc(w.cwiczenie)}">${esc(w.cwiczenie)}</span></div>
+      <div class="wart">${wart}</div>
+      <div class="kiedy">${krotkaData(w.data)}${dod}</div></div>`;
+  }).join('');
+}
+
+// ===== Wykres postępu (rysowany ręcznie w SVG) =====
+function ladneSkale(lo, hi, n) {
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const krok0 = (hi - lo) / n, rzad = 10 ** Math.floor(Math.log10(krok0)), f = krok0 / rzad;
+  const krok = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * rzad;
+  const a = Math.floor(lo / krok) * krok, b = Math.ceil(hi / krok) * krok, ticki = [];
+  for (let t = a; t <= b + krok / 2; t += krok) ticki.push(Math.round(t * 1000) / 1000);
+  return { a, b, ticki };
+}
+// Rysuje wykres w podanym miejscu (box) dla podanego ćwiczenia.
+// Bez argumentów: wykres w zakładce Wyniki, dla ćwiczenia wybranego z listy.
+function rysujWykres(box = $('wykres'), nazwa = $('w-cw').value) {
+  if (!wyniki || !cwiczenia || !box) return;
+  const cw = cwPoNazwie(nazwa) || (wyniki.find(w => w.cwiczenie === nazwa) && { typ: wyniki.find(w => w.cwiczenie === nazwa).typ });
+  if (!cw) { box.innerHTML = '<p class="pusto">Dodaj ćwiczenie, żeby zobaczyć wykres.</p>'; return; }
+  // Jeden punkt na dzień: najlepszy wynik z tego dnia
+  const naDzien = new Map();
+  for (const w of wyniki.filter(w => w.cwiczenie === nazwa)) naDzien.set(w.data, Math.max(naDzien.get(w.data) ?? 0, wartosc(w)));
+  const pkt = [...naDzien].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ d, t: naDate(d).getTime(), v }));
+  const jedn = TYPY[cw.typ].jedn;
+  if (pkt.length < 2) {
+    box.innerHTML = `<p class="pusto">${pkt.length ? 'Masz 1 trening z tym ćwiczeniem.' : 'Brak wyników dla tego ćwiczenia.'} Wykres pojawi się po co najmniej 2 treningach.</p>`;
+    return;
+  }
+  const W = Math.max(280, box.clientWidth || 600), H = 230, m = { l: 44, r: 20, t: 22, b: 30 };
+  const { a, b, ticki } = ladneSkale(Math.min(...pkt.map(p => p.v)), Math.max(...pkt.map(p => p.v)), 4);
+  const t0 = pkt[0].t, t1 = pkt[pkt.length - 1].t;
+  const x = t => m.l + (t - t0) / (t1 - t0) * (W - m.l - m.r);
+  const y = v => m.t + (b - v) / (b - a) * (H - m.t - m.b);
+  const linia = pkt.map((p, i) => (i ? 'L' : 'M') + x(p.t).toFixed(1) + ' ' + y(p.v).toFixed(1)).join(' ');
+  const pole = linia + ` L${x(t1).toFixed(1)} ${H - m.b} L${x(t0).toFixed(1)} ${H - m.b} Z`;
+  // Podpisy dat: pierwsza, ostatnia i środkowa (jeśli jest miejsce)
+  const podpisy = [pkt[0], pkt[pkt.length - 1]];
+  if (pkt.length > 2 && W > 420) podpisy.splice(1, 0, pkt[Math.floor(pkt.length / 2)]);
+  const ost = pkt[pkt.length - 1];
+  box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Postęp: ${esc(nazwa)}">
+    ${ticki.map(t => `<line class="siatka-y" x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/>
+      <text x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`).join('')}
+    <text x="${m.l - 8}" y="${m.t - 9}" text-anchor="end">${jedn}</text>
+    <path class="pole" d="${pole}"/>
+    <path class="linia" d="${linia}"/>
+    ${pkt.map((p, i) => `<circle class="punkt ${i === pkt.length - 1 ? 'ostatni' : ''}" cx="${x(p.t)}" cy="${y(p.v)}" r="${i === pkt.length - 1 ? 5 : 3.5}"><title>${krotkaData(p.d)}: ${fmt(p.v)} ${jedn}</title></circle>`).join('')}
+    <text class="etyk-ost" x="${x(ost.t) - 8}" y="${y(ost.v) - 10}" text-anchor="end">${fmt(ost.v)} ${jedn}</text>
+    ${podpisy.map((p, i) => `<text x="${x(p.t)}" y="${H - 8}" text-anchor="${i === 0 ? 'start' : i === podpisy.length - 1 ? 'end' : 'middle'}">${krotkaData(p.d)}</text>`).join('')}
+  </svg>`;
+}
+$('w-cw').addEventListener('change', () => rysujWykres());
+// Wykres w Moich treningach (dla otwartego ćwiczenia)
+function rysujWykresMt() { const b = $('mt-wykres'); if (b && mtCw) rysujWykres(b, mtCw); }
+// Gdy zmienia się szerokość (obrót telefonu, zmiana okna) — rysujemy wykresy od nowa
+let ramka = 0;
+const przerysuj = new ResizeObserver(() => { cancelAnimationFrame(ramka); ramka = requestAnimationFrame(() => { rysujWykres(); rysujWykresMt(); }); });
+przerysuj.observe($('wykres'));
+przerysuj.observe($('treningi'));
+
+// ===== Historia =====
+function renderHistoria() {
+  const box = $('historia');
+  if (!wyniki) return;
+  $('przyklady').hidden = !wyniki.some(w => w.przyklad);
+  if (!wyniki.length) {
+    box.innerHTML = '<p class="pusto">Brak treningów. Zapisz pierwszy wynik w formularzu powyżej — pojawi się tutaj, pogrupowany po dniach.</p>';
+    $('wiecej').hidden = true; return;
+  }
+  const pr = idRekordow(), dni = new Map();
+  for (const w of chronologicznie().reverse()) { if (!dni.has(w.data)) dni.set(w.data, []); dni.get(w.data).push(w); }
+  const klucze = [...dni.keys()];
+  box.innerHTML = klucze.slice(0, ileDni).map(d => `<div class="dzien"><h3>${ladnaData(d)}</h3>` +
+    dni.get(d).reverse().map(w => `<div class="wpis">
+      <span class="typ ${esc(w.typ)}"></span>
+      <div class="tresc">
+        <div class="nazwa">${esc(w.cwiczenie)}${pr.has(w.id) ? '<span class="znacznik pr">Rekord</span>' : ''}${w.przyklad ? '<span class="znacznik przyklad">przykład</span>' : ''}</div>
+        <div class="opis">${esc(opis(w))}</div>
+        ${w.notatka ? `<div class="notatka">${esc(w.notatka)}</div>` : ''}
+      </div>
+      <span class="wpis-akcje">
+        <button type="button" class="btn cichy maly" data-edytuj-wynik="${esc(w.id)}">Edytuj</button>
+        <button type="button" class="x" data-usun-wynik="${esc(w.id)}" aria-label="Usuń wpis">×</button>
+      </span>
+    </div>`).join('') + '</div>').join('');
+  $('wiecej').hidden = klucze.length <= ileDni;
+}
+$('wiecej').onclick = () => { ileDni += 10; renderHistoria(); };
+// Usuwanie w dwóch krokach: pierwsze kliknięcie pyta, drugie usuwa
+$('historia').addEventListener('click', async e => {
+  const ed = e.target.closest('[data-edytuj-wynik]');
+  if (ed) return edytujWynik(ed.dataset.edytujWynik);
+  const b = e.target.closest('[data-usun-wynik]'); if (!b || !db) return;
+  if (!b.classList.contains('potwierdz')) {
+    b.classList.add('potwierdz'); b.textContent = 'Usunąć?';
+    setTimeout(() => { if (b.isConnected) { b.classList.remove('potwierdz'); b.textContent = '×'; } }, 3000);
+    return;
+  }
+  b.disabled = true;
+  try { await db.doc('wyniki/' + b.dataset.usunWynik).delete(); } catch { b.disabled = false; }
+});
+$('usun-przyklady').addEventListener('click', async e => {
+  const b = e.target;
+  if (!b.dataset.pewne) { b.dataset.pewne = '1'; b.textContent = 'Na pewno? Kliknij jeszcze raz'; return; }
+  b.disabled = true;
+  for (const w of (wyniki || []).filter(w => w.przyklad)) { try { await db.doc('wyniki/' + w.id).delete(); } catch {} }
+  b.disabled = false; delete b.dataset.pewne; b.textContent = 'Usuń przykładowe wyniki';
+});
+
+// ===== Plan treningowy =====
+function renderPlan() {
+  const box = $('plan');
+  if (!plan || !cwiczenia) return;
+  // Zapamiętaj kursor, żeby odświeżenie nie przerywało pisania
+  const akt = document.activeElement, aktId = box.contains(akt) ? akt.id : null;
+  const opcje = cwiczenia.map(c => `<option value="${esc(c.nazwa)}">${esc(c.nazwa)}</option>`).join('');
+  box.innerHTML = DNI.map(([k, nazwa], i) => {
+    const d = plan[k] || {}, poz = d.pozycje || [];
+    return `<section class="dzien-planu ${i === DZIS_IDX ? 'dzisiaj' : ''}">
+      <div class="glowa"><h3>${nazwa}</h3>${i === DZIS_IDX ? '<span class="chip-dzis">Dziś</span>' : ''}</div>
+      <label>Nazwa treningu <input id="pt-${k}" data-dzien="${k}" class="tytul" placeholder="np. Góra ciała / Odpoczynek" maxlength="40" value="${esc(szkic['pt-' + k] ?? d.tytul ?? '')}"></label>
+      ${poz.length ? `<ul class="pozycje">${poz.map((p, j) => `<li class="pozycja">
+          <span class="typ ${esc(cwPoNazwie(p.cwiczenie)?.typ || '')}"></span>
+          <span class="tresc">${esc(p.cwiczenie)}${p.cel ? `<span class="cel">${esc(p.cel)}</span>` : ''}</span>
+          <button type="button" class="btn cichy maly" data-wpisz="${esc(p.cwiczenie)}">Wpisz wynik</button>
+          <button type="button" class="x" data-usun-poz="${k}:${j}" aria-label="Usuń z planu">×</button>
+        </li>`).join('')}</ul>` : '<p class="pusto">Brak ćwiczeń w tym dniu.</p>'}
+      ${cwiczenia.length ? `<div class="dodaj-pozycje">
+        <label>Ćwiczenie <select id="pc-${k}">${opcje}</select></label>
+        <label>Cel <input id="pg-${k}" placeholder="np. 4 × 8 × 60 kg" maxlength="40" value="${esc(szkic['pg-' + k] ?? '')}"></label>
+        <button type="button" class="btn maly" data-dodaj="${k}">Dodaj</button>
+      </div>` : `<p style="margin: 0;"><button type="button" class="btn cichy maly" data-idz-dodac="1">Najpierw dodaj ćwiczenia</button></p>`}
+    </section>`;
+  }).join('');
+  for (const [k] of DNI) if (szkic['pc-' + k] && cwPoNazwie(szkic['pc-' + k]) && $('pc-' + k)) $('pc-' + k).value = szkic['pc-' + k];
+  if (aktId && $(aktId)) $(aktId).focus();
+}
+async function zapiszDzien(k, zmiana) {
+  if (!db) return;
+  const d = { tytul: plan[k]?.tytul || '', pozycje: [...(plan[k]?.pozycje || [])] };
+  zmiana(d);
+  try { await db.doc('plan/' + k).set(d); } catch {}
+}
+$('plan').addEventListener('input', e => { if (e.target.id) szkic[e.target.id] = e.target.value; });
+$('plan').addEventListener('change', e => {
+  if (e.target.id?.startsWith('pc-')) szkic[e.target.id] = e.target.value;
+  if (e.target.classList.contains('tytul')) {          // nazwa dnia zapisuje się po wyjściu z pola
+    const k = e.target.dataset.dzien, v = e.target.value.trim();
+    delete szkic[e.target.id];
+    if (v !== (plan[k]?.tytul || '')) zapiszDzien(k, d => { d.tytul = v; });
+  }
+});
+$('plan').addEventListener('click', e => {
+  const t = e.target;
+  if (t.dataset.dodaj) {
+    const k = t.dataset.dodaj, cw = $('pc-' + k).value, cel = $('pg-' + k).value.trim();
+    if (!cw) return;
+    delete szkic['pg-' + k];
+    zapiszDzien(k, d => { d.pozycje.push({ cwiczenie: cw, cel }); });
+  }
+  if (t.dataset.usunPoz) {
+    const [k, j] = t.dataset.usunPoz.split(':');
+    zapiszDzien(k, d => { d.pozycje.splice(Number(j), 1); });
+  }
+  if (t.dataset.wpisz) wybierzCwiczenie(t.dataset.wpisz);
+  if (t.dataset.idzDodac) { pokazZakladke('wyniki'); $('nowe-cw').open = true; $('n-nazwa').focus(); }
+});
+
+// ===== Moje treningi: lista ćwiczeń → kalendarz → serie z wybranego dnia =====
+let mtCw = null;       // wybrane ćwiczenie (null = lista)
+let mtMiesiac = null;  // pokazywany miesiąc, np. "2026-10"
+let mtDzien = null;    // wybrany dzień, np. "2026-10-20"
+const otwarteTreningi = new Set();   // które grupy są rozwinięte (żeby odświeżenie ich nie zwijało)
+// "toggle" nie przechodzi w górę drzewa, więc łapiemy go w fazie przechwytywania (true)
+$('treningi').addEventListener('toggle', e => {
+  const t = e.target.dataset?.trening; if (t === undefined) return;
+  if (e.target.open) otwarteTreningi.add(t); else otwarteTreningi.delete(t);
+}, true);
+const pad2 = n => String(n).padStart(2, '0');
+// ===== Zmiana nazwy treningu (np. "Push" → "Push A") =====
+let zmianaTreningu = null;   // który trening ma teraz otwarte pole zmiany nazwy
+let ztSzkic = null;          // to, co wpisujesz (żeby odświeżenie strony tego nie skasowało)
+async function zapiszNazweTreningu(stara) {
+  const nowa = ($('zt-input')?.value ?? '').trim();
+  zmianaTreningu = null; ztSzkic = null;
+  if (!nowa || nowa === stara || !db) return renderTreningi();
+  // trening to po prostu pole "trening" w każdym ćwiczeniu — zmieniamy je we wszystkich ćwiczeniach z tej grupy
+  for (const c of (cwiczenia || []).filter(c => (c.trening || '').trim() === stara)) {
+    try { await db.doc('cwiczenia/' + c.id).update({ trening: nowa }); } catch {}
+  }
+  if (otwarteTreningi.delete(stara)) otwarteTreningi.add(nowa);
+  renderTreningi();
+}
+$('treningi').addEventListener('input', e => { if (e.target.id === 'zt-input') ztSzkic = e.target.value; });
+$('treningi').addEventListener('keydown', e => {
+  if (e.target.id !== 'zt-input') return;
+  if (e.key === 'Enter') zapiszNazweTreningu(zmianaTreningu);
+  if (e.key === 'Escape') { zmianaTreningu = null; renderTreningi(); }
+});
+// Przyciski przy ćwiczeniu na liście: Edytuj + usuń
+const przyciskiCw = n => {
+  const c = cwPoNazwie(n);
+  return `<span class="wpis-akcje">${c ? `<button type="button" class="btn cichy maly" data-mt-edytuj="${esc(c.id)}">Edytuj</button>` : ''}${przyciskUsun(n)}</span>`;
+};
+
+// ===== Usuwanie ćwiczenia z Moich treningów (razem z jego wynikami) =====
+const przyciskUsun = n => `<button type="button" class="x" data-mt-usun="${esc(n)}" aria-label="Usuń ćwiczenie ${esc(n)}">×</button>`;
+async function potwierdzUsun(b) {
+  const nazwa = b.dataset.mtUsun;
+  const jegoWyniki = (wyniki || []).filter(w => w.cwiczenie === nazwa);
+  // Krok 1: pierwsze kliknięcie tylko pyta (i mówi, ile wyników zniknie)
+  if (!b.classList.contains('potwierdz')) {
+    b.dataset.tekst = b.textContent;
+    b.classList.add('potwierdz');
+    b.textContent = jegoWyniki.length ? `Usunąć razem z ${jegoWyniki.length} ${odmiana(jegoWyniki.length, 'wynikiem', 'wynikami', 'wynikami')}?` : 'Usunąć?';
+    setTimeout(() => { if (b.isConnected) { b.classList.remove('potwierdz'); b.textContent = b.dataset.tekst; } }, 4000);
+    return;
+  }
+  // Krok 2: drugie kliknięcie usuwa — najpierw wyniki, potem samo ćwiczenie
+  if (!db) return;
+  b.disabled = true;
+  try {
+    for (const w of jegoWyniki) await db.doc('wyniki/' + w.id).delete();
+    const c = cwPoNazwie(nazwa);
+    if (c) await db.doc('cwiczenia/' + c.id).delete();
+    if (mtCw === nazwa) { mtCw = null; renderTreningi(); }
+  } catch { b.disabled = false; b.textContent = 'Nie udało się — spróbuj ponownie'; }
+}
+
+const odmiana = (n, jeden, kilka, wiele) => n === 1 ? jeden : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? kilka : wiele;
+
+// Tabela serii jednego wpisu
+function tabelaSerii(w) {
+  if (w.typ === 'cardio') {
+    return `<table class="tabela"><thead><tr><th>Dystans</th><th>Czas</th><th>Tempo</th></tr></thead>
+      <tbody><tr><td>${fmt(w.km)} km</td><td>${w.czasSek ? fmtCzas(w.czasSek) : '—'}</td><td>${w.czasSek && w.km ? fmtCzas(w.czasSek / w.km) + '/km' : '—'}</td></tr></tbody></table>`;
+  }
+  const s = w.serie || [];
+  let glowa, wiersz, suma;
+  if (w.typ === 'ciezar') {
+    glowa = '<th>Seria</th><th>Ciężar</th><th>Powt.</th>';
+    wiersz = (x, i) => `<td>${i + 1}</td><td>${x.kgTekst ? esc(x.kgTekst) + ' = ' : ''}${fmt(x.kg)} kg</td><td>${x.powt}</td>`;
+    const powt = s.reduce((a, x) => a + x.powt, 0), objetosc = s.reduce((a, x) => a + x.kg * x.powt, 0);
+    suma = `<td>Razem</td><td>objętość ${fmt(objetosc)} kg</td><td>${powt}</td>`;
+  } else if (w.typ === 'powtorzenia') {
+    glowa = '<th>Seria</th><th>Powtórzenia</th>';
+    wiersz = (x, i) => `<td>${i + 1}</td><td>${x.powt}</td>`;
+    suma = `<td>Razem</td><td>${s.reduce((a, x) => a + x.powt, 0)}</td>`;
+  } else {
+    glowa = '<th>Seria</th><th>Czas</th>';
+    wiersz = (x, i) => `<td>${i + 1}</td><td>${fmt(x.sek)} s</td>`;
+    suma = `<td>Razem</td><td>${fmt(s.reduce((a, x) => a + x.sek, 0))} s</td>`;
+  }
+  return `<table class="tabela"><thead><tr>${glowa}</tr></thead>
+    <tbody>${s.map((x, i) => `<tr>${wiersz(x, i)}</tr>`).join('')}</tbody>
+    ${s.length > 1 ? `<tfoot><tr>${suma}</tr></tfoot>` : ''}</table>`;
+}
+
+function renderTreningi() {
+  const box = $('treningi');
+  if (!wyniki) return;
+  // Grupujemy wszystkie wyniki po nazwie ćwiczenia
+  const grupy = new Map();
+  for (const w of chronologicznie()) { if (!grupy.has(w.cwiczenie)) grupy.set(w.cwiczenie, []); grupy.get(w.cwiczenie).push(w); }
+  if (mtCw && !grupy.has(mtCw)) mtCw = null;
+
+  // KROK 1: treningi (push, pull…) → po rozwinięciu ćwiczenia
+  if (!mtCw) {
+    // wszystkie ćwiczenia: z Twojej listy + te, które mają zapisane wyniki
+    const nazwy = new Set([...(cwiczenia || []).map(c => c.nazwa), ...grupy.keys()]);
+    if (!nazwy.size) { box.innerHTML = '<p class="pusto">Tu pojawią się Twoje treningi i ćwiczenia. Dodaj ćwiczenie w zakładce Wyniki.</p>'; return; }
+    const BEZ = 'Bez przypisanego treningu';
+    const wgTreningu = new Map();
+    for (const n of nazwy) {
+      const t = (cwPoNazwie(n)?.trening || '').trim() || BEZ;
+      if (!wgTreningu.has(t)) wgTreningu.set(t, []);
+      wgTreningu.get(t).push(n);
+    }
+    // kolejność: alfabetycznie, "bez treningu" na końcu
+    const kolejnosc = [...wgTreningu.keys()].sort((a, b) => (a === BEZ) - (b === BEZ) || a.localeCompare(b, 'pl'));
+    box.innerHTML = '<div class="treningi-lista">' + kolejnosc.map(t => {
+      const lista = wgTreningu.get(t).sort((a, b) => a.localeCompare(b, 'pl'));
+      const wsT = lista.flatMap(n => grupy.get(n) || []);
+      const ostatnio = wsT.reduce((a, w) => w.data > a ? w.data : a, '');
+      const dniT = new Set(wsT.map(w => w.data)).size;
+      const info = `${lista.length} ${odmiana(lista.length, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}` +
+        (ostatnio ? ` · ${dniT} ${odmiana(dniT, 'trening', 'treningi', 'treningów')} · ostatnio ${krotkaData(ostatnio)}` : ' · brak wyników');
+      return `<details class="trening" data-trening="${esc(t)}" ${otwarteTreningi.has(t) ? 'open' : ''}>
+        <summary><span class="chev" aria-hidden="true">›</span><span class="tr-nazwa">${esc(t)}</span><span class="tr-info">${info}</span></summary>
+        <ul class="lista-cw">${lista.map(n => {
+          const ws = grupy.get(n), typ = cwPoNazwie(n)?.typ || ws?.[0]?.typ || '';
+          if (!ws) return `<li class="cw-li"><div class="cw-wiersz brak"><span class="typ ${esc(typ)}"></span>
+            <span class="tresc"><span class="nazwa">${esc(n)}</span><span class="cel">jeszcze bez zapisanych wyników</span></span><span></span></div>${przyciskiCw(n)}</li>`;
+          const ileDniCw = new Set(ws.map(w => w.data)).size;
+          return `<li class="cw-li"><button type="button" class="cw-wiersz" data-mt-cw="${esc(n)}">
+            <span class="typ ${esc(typ)}"></span>
+            <span class="tresc"><span class="nazwa">${esc(n)}</span>
+              <span class="cel">${ileDniCw} ${odmiana(ileDniCw, 'trening', 'treningi', 'treningów')} · ostatnio ${krotkaData(ws[ws.length - 1].data)}</span></span>
+            <span class="strzalka" aria-hidden="true">›</span></button>${przyciskiCw(n)}</li>`;
+        }).join('')}</ul>
+        ${zmianaTreningu === t ? `<div class="zmien-tr">
+          <input id="zt-input" value="${esc(ztSzkic ?? t)}" maxlength="40" autocomplete="off" aria-label="Nowa nazwa treningu">
+          <button type="button" class="btn maly" data-zt-zapisz="${esc(t)}">Zapisz</button>
+          <button type="button" class="btn cichy maly" data-zt-anuluj="1">Anuluj</button></div>` : ''}
+        <p class="dodaj-do przyciski"><button type="button" class="btn cichy maly" data-mt-dodaj="${esc(t === BEZ ? '' : t)}">+ Dodaj ćwiczenie${t === BEZ ? '' : ' do ' + esc(t)}</button>
+          ${t === BEZ || zmianaTreningu === t ? '' : `<button type="button" class="btn cichy maly" data-zt-start="${esc(t)}">Zmień nazwę treningu</button>`}</p>
+      </details>`;
+    }).join('') + '</div>';
+    return;
+  }
+
+  // KROK 2: kalendarz wybranego ćwiczenia
+  const ws = grupy.get(mtCw), dniTreningu = new Set(ws.map(w => w.data));
+  if (!mtDzien || !dniTreningu.has(mtDzien)) mtDzien = ws[ws.length - 1].data;   // domyślnie ostatni trening
+  if (!mtMiesiac) mtMiesiac = mtDzien.slice(0, 7);
+  const [r, m] = mtMiesiac.split('-').map(Number);
+  const pierwszy = new Date(r, m - 1, 1);
+  const przesuniecie = (pierwszy.getDay() + 6) % 7;      // ile pustych kratek przed 1. dniem (tydzień od poniedziałku)
+  const dniWMiesiacu = new Date(r, m, 0).getDate();
+  const dzis = dzisISO(), komorki = [];
+  for (let i = 0; i < przesuniecie; i++) komorki.push('<span></span>');
+  for (let d = 1; d <= dniWMiesiacu; d++) {
+    const iso = `${r}-${pad2(m)}-${pad2(d)}`, byl = dniTreningu.has(iso);
+    const klasy = ['dzien-kal', byl && 'byl', iso === mtDzien && 'wybrany', iso === dzis && 'dzis'].filter(Boolean).join(' ');
+    komorki.push(byl
+      ? `<button type="button" class="${klasy}" data-mt-dzien="${iso}" aria-pressed="${iso === mtDzien}" aria-label="${ladnaData(iso)}">${d}</button>`
+      : `<span class="${klasy}">${d}</span>`);
+  }
+  const wTymMiesiacu = [...dniTreningu].filter(d => d.startsWith(mtMiesiac)).length;
+
+  // KROK 3: serie z wybranego dnia
+  const tegoDnia = ws.filter(w => w.data === mtDzien);
+  const szczegoly = tegoDnia.map((w, i) => `<div class="tabela-box">
+      ${tegoDnia.length > 1 ? `<p class="wpis-tytul">Wpis ${i + 1}</p>` : ''}
+      ${tabelaSerii(w)}
+      ${w.notatka ? `<p class="notatka">${esc(w.notatka)}</p>` : ''}
+      <p style="margin: 8px 0 0;"><button type="button" class="btn cichy maly" data-mt-edytuj-wynik="${esc(w.id)}">Edytuj wynik</button></p></div>`).join('');
+
+  box.innerHTML = `
+    <button type="button" class="btn cichy maly" data-mt-wstecz="1">‹ ${esc((cwPoNazwie(mtCw)?.trening || '').trim() || 'Wszystkie treningi')}</button>
+    <div class="siatka dwie" style="margin-top: 12px;">
+      <section class="panel">
+        <h2><span class="typ ${esc(ws[ws.length - 1].typ)}" style="align-self: center;"></span>${esc(mtCw)}
+          <small>${dniTreningu.size} ${odmiana(dniTreningu.size, 'trening', 'treningi', 'treningów')} łącznie</small></h2>
+        <p class="pusto" style="margin: -4px 0 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          ${cwPoNazwie(mtCw) ? `<button type="button" class="btn cichy maly" data-mt-edytuj="${esc(cwPoNazwie(mtCw).id)}">Edytuj</button>` : ''}
+          <button type="button" class="btn cichy maly" data-mt-usun="${esc(mtCw)}">Usuń ćwiczenie</button></p>
+        <div class="kal-gora">
+          <button type="button" class="x" data-mt-mies="-1" aria-label="Poprzedni miesiąc">‹</button>
+          <strong>${pierwszy.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}</strong>
+          <button type="button" class="x" data-mt-mies="1" aria-label="Następny miesiąc">›</button>
+        </div>
+        <div class="kal">${['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'].map(x => `<span class="kal-dn">${x}</span>`).join('')}${komorki.join('')}</div>
+        <p class="pusto" style="margin-top: 10px;">${wTymMiesiacu
+          ? `W tym miesiącu: ${wTymMiesiacu} ${odmiana(wTymMiesiacu, 'trening', 'treningi', 'treningów')}. Kliknij podświetlony dzień.`
+          : 'Brak treningów w tym miesiącu.'}</p>
+      </section>
+      <section class="panel">
+        <h2>${ladnaData(mtDzien)}</h2>
+        ${szczegoly}
+      </section>
+    </div>
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Postęp <small>najlepszy wynik z każdego treningu</small></h2>
+      <div id="mt-wykres" class="wykres-box"></div>
+    </section>`;
+  rysujWykresMt();
+}
+$('treningi').addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.ztStart) { zmianaTreningu = t.dataset.ztStart; ztSzkic = null; renderTreningi(); $('zt-input')?.select(); return; }
+  if (t.dataset.ztAnuluj) { zmianaTreningu = null; renderTreningi(); return; }
+  if (t.dataset.ztZapisz) return zapiszNazweTreningu(t.dataset.ztZapisz);
+  if (t.dataset.mtEdytujWynik) return edytujWynik(t.dataset.mtEdytujWynik);
+  if (t.dataset.mtUsun !== undefined) return potwierdzUsun(t);
+  if (t.dataset.mtDodaj !== undefined) return otworzFormularzM(t.dataset.mtDodaj);
+  if (t.dataset.mtEdytuj) return otworzFormularzM(null, t.dataset.mtEdytuj);
+  if (t.dataset.mtCw) { mtCw = t.dataset.mtCw; mtDzien = null; mtMiesiac = null; }
+  else if (t.dataset.mtWstecz) { mtCw = null; }
+  else if (t.dataset.mtMies) {
+    const [r, m] = mtMiesiac.split('-').map(Number), d = new Date(r, m - 1 + Number(t.dataset.mtMies), 1);
+    mtMiesiac = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
+  }
+  else if (t.dataset.mtDzien) { mtDzien = t.dataset.mtDzien; }
+  else return;
+  renderTreningi();
+});
+
+// ===== Odśwież wszystko =====
+function renderWszystko() {
+  if (cwiczenia) { renderSelecty(); if (!$('f-pola').children.length) renderPola(); }
+  renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderKopia();
+}
+
+// ===== Zapis w pamięci przeglądarki (wersja na GitHub Pages) =====
+// Na claude.ai dane trzyma baza claude.ai. Na GitHub Pages takiej bazy nie ma, więc używamy localStorage —
+// "notesu" przeglądarki. Udajemy dokładnie te same funkcje (collection, doc, add, set, update, delete,
+// onSnapshot), dzięki czemu reszta kodu nie musi wiedzieć, gdzie naprawdę leżą dane.
+const KLUCZ = 'dziennik-treningowy-v1';
+const KOLEKCJE = ['cwiczenia', 'wyniki', 'plan'];
+const pusteDane = () => ({ cwiczenia: {}, wyniki: {}, plan: {} });
+let trybLokalny = false;
+function pokazBladZapisu() {
+  const b = $('baner'); b.hidden = false;
+  b.textContent = 'Ta przeglądarka nie pozwala zapisywać danych (np. tryb prywatny). Wyniki znikną po zamknięciu strony.';
+}
+function lokalnaBaza() {
+  let dane = pusteDane(), dziala = true;
+  try { const z = JSON.parse(localStorage.getItem(KLUCZ) || 'null'); if (z) dane = { ...dane, ...z }; } catch { dziala = false; }
+  const sluchacze = [];                       // [kolekcja, funkcja] — kto chce wiedzieć o zmianach
+  const kopia = o => JSON.parse(JSON.stringify(o));
+  const powiadom = tylko => setTimeout(() => {
+    for (const [k, fn] of sluchacze) if (!tylko || tylko === k)
+      fn({ docs: Object.entries(dane[k] || {}).map(([id, d]) => ({ id, exists: true, data: () => kopia(d) })) });
+  }, 0);
+  const zapisz = () => {
+    try { localStorage.setItem(KLUCZ, JSON.stringify(dane)); } catch { dziala = false; pokazBladZapisu(); }
+    powiadom();
+  };
+  const noweId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const dokument = (k, id) => ({
+    id,
+    set: async d => { dane[k][id] = kopia(d); zapisz(); },
+    update: async d => { if (!dane[k][id]) throw { code: 'invalid_argument' }; dane[k][id] = { ...dane[k][id], ...kopia(d) }; zapisz(); },
+    delete: async () => { delete dane[k][id]; zapisz(); },
+  });
+  // dane zmieniły się w innej karcie przeglądarki → odśwież tę kartę
+  window.addEventListener('storage', e => {
+    if (e.key !== KLUCZ) return;
+    try { dane = { ...pusteDane(), ...JSON.parse(e.newValue || '{}') }; powiadom(); } catch {}
+  });
+  return {
+    dziala: () => dziala,
+    wszystko: () => kopia(dane),
+    zastap: nowe => { dane = { ...pusteDane(), ...kopia(nowe) }; zapisz(); },
+    collection: k => ({
+      doc: id => dokument(k, id || noweId()),
+      add: async d => { const r = dokument(k, noweId()); await r.set(d); return r; },
+      onSnapshot: fn => { sluchacze.push([k, fn]); powiadom(k); return () => {}; },
+    }),
+    doc: sciezka => { const [k, id] = sciezka.split('/'); return dokument(k, id); },
+  };
+}
+
+// ===== Kopia zapasowa (plik .json) =====
+const opisDanych = d => {
+  const c = Object.keys(d.cwiczenia || {}).length, w = Object.keys(d.wyniki || {}).length;
+  return `${c} ${odmiana(c, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}, ${w} ${odmiana(w, 'wynik', 'wyniki', 'wyników')}`;
+};
+const komKopia = (t, k) => { $('kopia-kom').textContent = t; $('kopia-kom').className = 'komunikat ' + (k || ''); };
+function renderKopia() {
+  if (!trybLokalny) return;
+  let ost = null; try { ost = localStorage.getItem(KLUCZ + '-kopia'); } catch {}
+  $('kopia-info').textContent = `W tej przeglądarce: ${opisDanych(db.wszystko())}. ` +
+    (ost ? `Ostatnia kopia: ${new Date(Number(ost)).toLocaleDateString('pl-PL')}. ` : 'Nie masz jeszcze żadnej kopii. ') +
+    'Wyczyszczenie danych przeglądarki skasuje wyniki, więc co jakiś czas zapisz kopię.';
+}
+$('kopia-zapisz').onclick = () => {
+  const dane = { aplikacja: 'dziennik-treningowy', wersja: 1, zapisano: new Date().toISOString(), ...db.wszystko() };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(dane, null, 2)], { type: 'application/json' }));
+  a.download = `trening-kopia-${dzisISO()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  try { localStorage.setItem(KLUCZ + '-kopia', String(Date.now())); } catch {}
+  komKopia('Zapisano plik kopii. Znajdziesz go w folderze Pobrane.', 'ok');
+  renderKopia();
+};
+let doWczytania = null;
+const pokazPotwierdzenie = pokaz => { $('kopia-potwierdz').hidden = !pokaz; $('kopia-anuluj').hidden = !pokaz; };
+// Najpierw pokazujemy, co jest w kopii, i pytamy — wczytanie zastępuje obecne dane
+function przygotujImport(d) {
+  if (!d || typeof d !== 'object' || !KOLEKCJE.some(k => d[k] && typeof d[k] === 'object')) return komKopia('To nie jest plik kopii dziennika.', 'blad');
+  doWczytania = Object.fromEntries(KOLEKCJE.map(k => [k, d[k] || {}]));
+  pokazZakladke('wyniki');
+  komKopia(`Kopia zawiera: ${opisDanych(doWczytania)}. Wczytanie zastąpi to, co jest teraz w tej przeglądarce (${opisDanych(db.wszystko())}).`, '');
+  pokazPotwierdzenie(true);
+  setTimeout(() => $('kopia').scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+}
+$('kopia-wczytaj').onclick = () => $('kopia-plik').click();
+$('kopia-plik').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { przygotujImport(JSON.parse(await f.text())); } catch { komKopia('Nie udało się odczytać pliku.', 'blad'); }
+};
+$('kopia-potwierdz').onclick = () => {
+  if (!doWczytania) return;
+  db.zastap(doWczytania); doWczytania = null; pokazPotwierdzenie(false);
+  komKopia('Wczytano dane z kopii.', 'ok');
+};
+$('kopia-anuluj').onclick = () => { doWczytania = null; pokazPotwierdzenie(false); komKopia('Anulowano — dane bez zmian.', ''); };
+
+// ===== Start =====
+$('dzisiejsza-data').textContent = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+$('f-data').value = dzisISO();
+try { const z = localStorage.getItem('zakladka'); if (z) pokazZakladke(z); } catch (e) {}
+if (ZAKLADKI.includes(location.hash.slice(1))) pokazZakladke(location.hash.slice(1));
+
+(async () => {
+  // Gdzie są dane? Na claude.ai — baza claude.ai; na GitHub Pages (lub z pliku na dysku) — pamięć przeglądarki
+  trybLokalny = !window.claude?.use && (location.hostname.endsWith('github.io') || location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(location.hostname));
+  if (trybLokalny) {
+    db = lokalnaBaza();
+    $('kopia').hidden = false;
+    if (!db.dziala()) pokazBladZapisu();
+    try { navigator.storage?.persist?.(); } catch {}   // prośba, żeby przeglądarka sama nie czyściła danych
+    // link z danymi do przeniesienia: …/#import=<dane zakodowane w base64>
+    if (location.hash.startsWith('#import=')) {
+      try {
+        const b = atob(location.hash.slice(8).replace(/-/g, '+').replace(/_/g, '/'));
+        przygotujImport(JSON.parse(new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0)))));
+      } catch { komKopia('Link z danymi jest uszkodzony.', 'blad'); }
+      history.replaceState(null, '', location.pathname + location.search);   // usuń dane z paska adresu
+    }
+  } else {
+    db = (await window.claude?.use?.('db')) ?? null;
+  }
+  if (!db) {
+    const b = $('baner'); b.hidden = false;
+    b.textContent = 'Nie można połączyć się z zapisanymi danymi. Otwórz stronę zalogowany na claude.ai.';
+    cwiczenia = []; wyniki = []; plan = {}; renderWszystko(); return;
+  }
+  const blad = () => { const b = $('baner'); b.hidden = false; b.textContent = 'Połączenie z danymi zostało przerwane. Odśwież stronę.'; };
+  db.collection('cwiczenia').onSnapshot(s => {
+    cwiczenia = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.nazwa.localeCompare(b.nazwa, 'pl'));
+    wczytajSerieZPol(); renderSelecty(); renderPola(); renderWszystko();
+  }, blad);
+  db.collection('wyniki').onSnapshot(s => { wyniki = s.docs.map(d => ({ id: d.id, ...d.data() })); renderWszystko(); }, blad);
+  db.collection('plan').onSnapshot(s => { plan = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderWszystko(); }, blad);
+})();
+</script>
+</body></html>
