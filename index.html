@@ -10,6 +10,8 @@
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head><body>
 <title>Dziennik Treningowy</title>
+<!-- Zapamiętany motyw (jasny/ciemny) ustawiamy od razu, żeby strona nie mignęła na biało przy starcie -->
+<script>try { const m = localStorage.getItem('motyw'); if (m === 'dark' || m === 'light') document.documentElement.dataset.theme = m; } catch (e) {}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -114,6 +116,23 @@ header h1::before {
 .konto-menu button:hover { background: var(--bg); }
 .konto-email { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
 .konto-email small { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px; }
+/* Suwak motywu: zwykły input range z dwiema pozycjami (0 = jasny, 1 = ciemny), wyglądający jak przełącznik */
+.motyw-wiersz { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.motyw-wiersz .ikona { font-size: 1.2rem; line-height: 1; color: var(--muted); }
+.motyw-wiersz .ikona.aktywna { color: var(--ink); }
+.suwak-motywu {
+  -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; flex: none;
+  width: 64px; height: 34px; border-radius: 17px; padding: 0 3px;
+  background: var(--line); border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  transition: background-color .2s;
+}
+.suwak-motywu.ciemny { background: var(--accent); }
+.suwak-motywu::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 28px; height: 28px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); border: 0;
+}
+.suwak-motywu::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); border: 0; }
+.suwak-motywu::-moz-range-track { background: transparent; }
 
 /* Zakładki (dwa "okienka") */
 .zakladki {
@@ -534,6 +553,16 @@ body.z-przerwa .app { padding-bottom: 110px; }
       <h2>Moje treningi <small>ćwiczenia, kalendarz i serie</small></h2>
       <div class="przyciski" style="margin-top: 12px;">
         <button class="btn" type="button" id="konto-do-treningow">Otwórz moje treningi ›</button>
+      </div>
+    </section>
+
+    <!-- Wygląd: suwak jasny ↔ ciemny -->
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Wygląd <small id="motyw-opis">jasny</small></h2>
+      <div class="motyw-wiersz">
+        <span class="ikona" id="motyw-slonce" aria-hidden="true">☀</span>
+        <input type="range" class="suwak-motywu" id="motyw" min="0" max="1" step="1" value="0" aria-label="Motyw: jasny lub ciemny">
+        <span class="ikona" id="motyw-ksiezyc" aria-hidden="true">☾</span>
       </div>
     </section>
 
@@ -1886,6 +1915,28 @@ $('konto-otworz').onclick = () => { pokazMenuKonta(false); pokazZakladke('konto'
 $('konto-treningi').onclick = () => { pokazMenuKonta(false); pokazZakladke('treningi'); };
 $('konto-do-treningow').onclick = () => pokazZakladke('treningi');
 $('konto-wstecz').onclick = () => pokazZakladke(powrot.konto, true);
+
+// ===== Motyw jasny / ciemny (suwak w Moim koncie) =====
+// Dopóki nic nie wybrano, strona jest taka jak ustawienie telefonu; po przesunięciu suwaka — zapamiętujemy wybór.
+const motywSystemu = matchMedia('(prefers-color-scheme: dark)');
+const jestCiemno = () => (document.documentElement.dataset.theme || (motywSystemu.matches ? 'dark' : 'light')) === 'dark';
+function pokazSuwakMotywu() {
+  const c = jestCiemno(), s = $('motyw');
+  s.value = c ? '1' : '0';
+  s.classList.toggle('ciemny', c);
+  s.setAttribute('aria-valuetext', c ? 'ciemny' : 'jasny');
+  $('motyw-opis').textContent = c ? 'ciemny' : 'jasny';
+  $('motyw-slonce').classList.toggle('aktywna', !c);
+  $('motyw-ksiezyc').classList.toggle('aktywna', c);
+}
+$('motyw').addEventListener('input', e => {
+  const m = e.target.value === '1' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = m;
+  try { localStorage.setItem('motyw', m); } catch (err) {}
+  pokazSuwakMotywu();
+});
+motywSystemu.addEventListener('change', pokazSuwakMotywu);   // telefon sam przełączył tryb (np. wieczorem)
+pokazSuwakMotywu();
 $('treningi-wstecz').onclick = () => pokazZakladke(powrot.treningi, true);
 // klik poza menu albo Escape zamyka menu
 document.addEventListener('click', e => { if (!$('konto-menu').hidden && !e.target.closest('.konto-box')) pokazMenuKonta(false); });
