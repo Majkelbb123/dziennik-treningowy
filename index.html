@@ -106,7 +106,8 @@ header .data { color: var(--muted); margin: 6px 0 0; }
   border-bottom: 1px solid var(--line);
 }
 .zakladki button {
-  flex: 1; font-family: var(--font-body); font-weight: 500; font-size: .92rem; line-height: 1.25;
+  flex: 1 1 auto; white-space: nowrap;   /* dłuższa nazwa dostaje więcej miejsca, nie łamie się */
+  font-family: var(--font-body); font-weight: 500; font-size: .92rem; line-height: 1.25;
   padding: 12px 4px; margin-bottom: -1px;
   border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted);
   border-radius: 0; cursor: pointer;
@@ -234,7 +235,8 @@ details.nowe .rzad { margin-top: 10px; }
 .baner { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--danger); color: var(--danger); margin-bottom: 14px; }
 .baner.spokojny { border-color: var(--line); color: var(--muted); background: var(--surface); }
 .rekord .wart { overflow-wrap: anywhere; }
-@media (max-width: 480px) { .zakladki button { font-size: 1rem; padding: 8px 4px; letter-spacing: .02em; } .zakladki .dl { display: none; } }
+@media (max-width: 480px) { .zakladki button { font-size: 1rem; padding: 8px 4px; letter-spacing: .02em; } }
+@media (max-width: 359px) { .zakladki .dl { display: none; } }   /* najmniejsze telefony: samo „Plan” */
 
 /* Moje treningi: lista ćwiczeń */
 .lista-cw { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -405,6 +407,7 @@ body.z-przerwa .app { padding-bottom: 110px; }
       <div class="konto-menu" id="konto-menu" role="menu" hidden>
         <p class="konto-kto" id="konto-kto"></p>
         <button type="button" role="menuitem" id="konto-otworz">Moje konto</button>
+        <button type="button" role="menuitem" id="konto-treningi">Moje treningi</button>
       </div>
     </div>
   </header>
@@ -412,7 +415,6 @@ body.z-przerwa .app { padding-bottom: 110px; }
   <nav class="zakladki" role="tablist">
     <button role="tab" id="tab-trening" aria-controls="v-trening" aria-selected="false">Trening</button>
     <button role="tab" id="tab-wyniki" aria-controls="v-wyniki" aria-selected="true">Wyniki</button>
-    <button role="tab" id="tab-treningi" aria-controls="v-treningi" aria-selected="false">Treningi</button>
     <button role="tab" id="tab-plan" aria-controls="v-plan" aria-selected="false">Plan<span class="dl"> treningowy</span></button>
   </nav>
 
@@ -482,8 +484,9 @@ body.z-przerwa .app { padding-bottom: 110px; }
 
   </main>
 
-  <!-- OKIENKO 2: MOJE TRENINGI (lista ćwiczeń → kalendarz → serie) -->
-  <main id="v-treningi" role="tabpanel" aria-labelledby="tab-treningi" hidden>
+  <!-- MOJE TRENINGI (lista ćwiczeń → kalendarz → serie): otwierane z Mojego konta, nie jest zakładką -->
+  <main id="v-treningi" hidden>
+    <button type="button" class="btn cichy maly" id="treningi-wstecz" style="margin-bottom: 12px;">‹ Wróć</button>
     <details class="panel nowe-panel" id="m-panel" style="margin-bottom: 12px;">
       <summary id="m-panel-tytul">+ Nowe ćwiczenie</summary>
       <div id="m-formularz" class="form-cw"></div>
@@ -503,6 +506,14 @@ body.z-przerwa .app { padding-bottom: 110px; }
       <h2>Moje konto</h2>
       <p id="konto-email" class="konto-email"></p>
       <div class="rekordy" id="konto-staty" style="margin-top: 14px;"></div>
+    </section>
+
+    <!-- Wejście do Moich treningów (dawna zakładka "Treningi") -->
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Moje treningi <small>ćwiczenia, kalendarz i serie</small></h2>
+      <div class="przyciski" style="margin-top: 12px;">
+        <button class="btn" type="button" id="konto-do-treningow">Otwórz moje treningi ›</button>
+      </div>
     </section>
 
     <!-- Synchronizacja: logowanie do Supabase, żeby telefon i komputer miały te same dane (tylko GitHub Pages) -->
@@ -634,18 +645,21 @@ function idRekordow() {
 }
 
 // ===== Zakładki =====
-const ZAKLADKI = ['trening', 'wyniki', 'treningi', 'plan'];
-let poprzedniaZakladka = 'wyniki';   // dokąd wraca "‹ Wróć" z Mojego konta
-function pokazZakladke(nazwa) {
-  if (nazwa === 'konto') {
-    const teraz = ZAKLADKI.find(z => !$('v-' + z).hidden);
-    if (teraz) poprzedniaZakladka = teraz;
+const ZAKLADKI = ['trening', 'wyniki', 'plan'];
+const PODSTRONY = ['konto', 'treningi'];   // otwierane z menu konta — nie mają zakładki na górze
+const powrot = { konto: 'wyniki', treningi: 'wyniki' };   // dokąd wraca "‹ Wróć" z każdej podstrony
+function pokazZakladke(nazwa, wstecz = false) {
+  if (PODSTRONY.includes(nazwa)) {
+    // zapamiętujemy, skąd przyszliśmy (zakładka albo np. Moje konto → Moje treningi)
+    const skad = [...ZAKLADKI, ...PODSTRONY].find(z => !$('v-' + z).hidden);
+    if (!wstecz && skad && skad !== nazwa) powrot[nazwa] = skad;   // przy „Wróć” nie nadpisujemy
     for (const z of ZAKLADKI) { $('tab-' + z).setAttribute('aria-selected', 'false'); $('v-' + z).hidden = true; }
-    $('v-konto').hidden = false;
-    renderKonto(); window.scrollTo({ top: 0 });
+    for (const p of PODSTRONY) $('v-' + p).hidden = p !== nazwa;
+    if (nazwa === 'konto') renderKonto();
+    window.scrollTo({ top: 0 });
     return;
   }
-  $('v-konto').hidden = true;
+  for (const p of PODSTRONY) $('v-' + p).hidden = true;
   if (!ZAKLADKI.includes(nazwa)) nazwa = 'wyniki';
   // pokazujemy jedną zakładkę, resztę chowamy
   for (const z of ZAKLADKI) {
@@ -657,7 +671,7 @@ function pokazZakladke(nazwa) {
 for (const z of ZAKLADKI) $('tab-' + z).onclick = () => pokazZakladke(z);
 
 // ===== Przesuwanie palcem między zakładkami =====
-// Palec w lewo → następna zakładka (Trening → Wyniki → Treningi → Plan), w prawo → poprzednia.
+// Palec w lewo → następna zakładka (Trening → Wyniki → Plan), w prawo → poprzednia.
 // Liczy się tylko wyraźny ruch w bok — zwykłe przewijanie strony w górę i w dół nic nie zmienia.
 let dotyk = null;
 // Czy w tym miejscu przesuwanie w bok ma już inne zadanie (pole, w którym piszesz, szeroka tabela, minutnik)?
@@ -672,9 +686,9 @@ function przesuwaWBok(el) {
 }
 document.addEventListener('touchstart', e => {
   const t = e.touches[0];
-  // jeden palec, nie przy samej krawędzi ekranu (tam iPhone ma własny gest „wstecz”), nie w Moim koncie
+  // jeden palec, nie przy samej krawędzi ekranu (tam iPhone ma własny gest „wstecz”), nie w Moim koncie ani Moich treningach
   dotyk = e.touches.length === 1 && t.clientX > 24 && t.clientX < innerWidth - 24
-    && $('v-konto').hidden && !przesuwaWBok(e.target)
+    && PODSTRONY.every(p => $('v-' + p).hidden) && !przesuwaWBok(e.target)
     ? { x: t.clientX, y: t.clientY, czas: Date.now() } : null;
 }, { passive: true });
 document.addEventListener('touchend', e => {
@@ -1845,7 +1859,10 @@ function pokazMenuKonta(pokaz) {
 }
 $('konto-przycisk').onclick = e => { e.stopPropagation(); pokazMenuKonta($('konto-menu').hidden); };
 $('konto-otworz').onclick = () => { pokazMenuKonta(false); pokazZakladke('konto'); };
-$('konto-wstecz').onclick = () => pokazZakladke(poprzedniaZakladka);
+$('konto-treningi').onclick = () => { pokazMenuKonta(false); pokazZakladke('treningi'); };
+$('konto-do-treningow').onclick = () => pokazZakladke('treningi');
+$('konto-wstecz').onclick = () => pokazZakladke(powrot.konto, true);
+$('treningi-wstecz').onclick = () => pokazZakladke(powrot.treningi, true);
 // klik poza menu albo Escape zamyka menu
 document.addEventListener('click', e => { if (!$('konto-menu').hidden && !e.target.closest('.konto-box')) pokazMenuKonta(false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('konto-menu').hidden) { pokazMenuKonta(false); $('konto-przycisk').focus(); } });
@@ -2222,7 +2239,7 @@ $('kopia-anuluj').onclick = () => { doWczytania = null; pokazPotwierdzenie(false
 // ===== Start =====
 $('dzisiejsza-data').textContent = new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 $('f-data').value = dzisISO();
-try { const z = localStorage.getItem('zakladka'); if (z) pokazZakladke(z); } catch (e) {}
+try { const z = localStorage.getItem('zakladka'); if (ZAKLADKI.includes(z)) pokazZakladke(z); } catch (e) {}
 if (ZAKLADKI.includes(location.hash.slice(1))) pokazZakladke(location.hash.slice(1));
 if (sesja) pokazZakladke('trening');   // trening w trakcie → wracamy prosto do niego
 
