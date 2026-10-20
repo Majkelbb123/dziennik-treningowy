@@ -312,7 +312,9 @@ details.trening .cw-wiersz { background: var(--bg); }
   font: inherit; color: var(--muted); border: 1.5px solid transparent; background: transparent; padding: 0;
 }
 .dzien-kal.dzis { border-color: var(--line); color: var(--ink); }
-.dzien-kal.byl { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--ink); font-weight: 700; cursor: pointer; }
+.dzien-kal { cursor: pointer; }
+.dzien-kal:hover { border-color: var(--line); }
+.dzien-kal.byl { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--ink); font-weight: 700; }
 .dzien-kal.byl:hover { border-color: var(--accent); }
 .dzien-kal.wybrany { background: var(--accent); color: var(--accent-ink); }
 
@@ -1118,9 +1120,8 @@ function htmlKalendarza(miesiac, dni, wybrany, p) {
   for (let d = 1; d <= dniWMiesiacu; d++) {
     const iso = `${r}-${pad2(m)}-${pad2(d)}`, byl = dni.has(iso);
     const klasy = ['dzien-kal', byl && 'byl', iso === wybrany && 'wybrany', iso === dzis && 'dzis'].filter(Boolean).join(' ');
-    komorki.push(byl
-      ? `<button type="button" class="${klasy}" data-${p}-dzien="${iso}" aria-pressed="${iso === wybrany}" aria-label="${ladnaData(iso)}">${d}</button>`
-      : `<span class="${klasy}">${d}</span>`);
+    // każdy dzień da się kliknąć — także ten bez treningu
+    komorki.push(`<button type="button" class="${klasy}" data-${p}-dzien="${iso}" aria-pressed="${iso === wybrany}" aria-label="${ladnaData(iso)}${byl ? ', trening' : ''}">${d}</button>`);
   }
   const wTymMiesiacu = [...dni].filter(d => d.startsWith(miesiac)).length;
   return `<div class="kal-gora">
@@ -1130,7 +1131,7 @@ function htmlKalendarza(miesiac, dni, wybrany, p) {
     </div>
     <div class="kal">${['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'].map(x => `<span class="kal-dn">${x}</span>`).join('')}${komorki.join('')}</div>
     <p class="pusto" style="margin-top: 10px;">${wTymMiesiacu
-      ? `W tym miesiącu: ${wTymMiesiacu} ${odmiana(wTymMiesiacu, 'trening', 'treningi', 'treningów')}. Kliknij podświetlony dzień.`
+      ? `W tym miesiącu: ${wTymMiesiacu} ${odmiana(wTymMiesiacu, 'trening', 'treningi', 'treningów')}. Podświetlone dni to treningi.`
       : 'Brak treningów w tym miesiącu.'}</p>`;
 }
 // "2026-10" przesunięte o n miesięcy
@@ -1141,12 +1142,9 @@ function renderHistoria() {
   const box = $('historia');
   if (!wyniki) return;
   $('przyklady').hidden = !wyniki.some(w => w.przyklad);
-  if (!wyniki.length) {
-    box.innerHTML = '<p class="pusto">Brak treningów. Zapisz pierwszy wynik — dzień treningu podświetli się w kalendarzu.</p>';
-    return;
-  }
   const pr = idRekordow(), ws = chronologicznie(), dni = new Set(ws.map(w => w.data));
-  if (!hDzien || !dni.has(hDzien)) { hDzien = ws[ws.length - 1].data; hMiesiac = null; }   // domyślnie ostatni trening
+  // domyślnie ostatni trening (a gdy nie ma żadnego — dziś); wybrany pusty dzień zostaje wybrany
+  if (!hDzien) { hDzien = ws.length ? ws[ws.length - 1].data : dzisISO(); hMiesiac = null; }
   if (!hMiesiac) hMiesiac = hDzien.slice(0, 7);
 
   // podsumowanie dnia: ile ćwiczeń, serii i objętość (kg × powtórzenia)
@@ -1167,12 +1165,18 @@ function renderHistoria() {
     <div>${htmlKalendarza(hMiesiac, dni, hDzien, 'h')}</div>
     <div class="h-dzien">
       <h3>${ladnaData(hDzien)}</h3>
-      <p class="pusto" style="margin-bottom: 12px;">${ileCw} ${odmiana(ileCw, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')} · ${serii} ${odmiana(serii, 'seria', 'serie', 'serii')}${objetosc ? ' · objętość ' + fmt(objetosc) + ' kg' : ''}</p>
-      ${wpisy}
+      ${ileCw ? `<p class="pusto" style="margin-bottom: 12px;">${ileCw} ${odmiana(ileCw, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')} · ${serii} ${odmiana(serii, 'seria', 'serie', 'serii')}${objetosc ? ' · objętość ' + fmt(objetosc) + ' kg' : ''}</p>` : ''}
+      ${wpisy || `<p class="pusto">Brak treningu tego dnia.</p>
+        <p><button type="button" class="btn cichy maly" data-h-dodaj="${hDzien}">+ Zapisz wynik z tego dnia</button></p>`}
     </div></div>`;
 }
 // Usuwanie w dwóch krokach: pierwsze kliknięcie pyta, drugie usuwa
 $('historia').addEventListener('click', async e => {
+  const dod = e.target.closest('[data-h-dodaj]');
+  if (dod) {   // pusty dzień → formularz „Zapisz wynik” z ustawioną tą datą
+    $('f-data').value = dod.dataset.hDodaj;
+    return $('f-wynik').closest('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   const k = e.target.closest('[data-h-dzien], [data-h-mies]');
   if (k) {
     if (k.dataset.hDzien) hDzien = k.dataset.hDzien;
@@ -1402,7 +1406,7 @@ function renderTreningi() {
 
   // KROK 2: kalendarz wybranego ćwiczenia
   const ws = grupy.get(mtCw), dniTreningu = new Set(ws.map(w => w.data));
-  if (!mtDzien || !dniTreningu.has(mtDzien)) mtDzien = ws[ws.length - 1].data;   // domyślnie ostatni trening
+  if (!mtDzien) mtDzien = ws[ws.length - 1].data;   // domyślnie ostatni trening (pusty dzień też można wybrać)
   if (!mtMiesiac) mtMiesiac = mtDzien.slice(0, 7);
 
   // KROK 3: serie z wybranego dnia
@@ -1426,7 +1430,7 @@ function renderTreningi() {
       </section>
       <section class="panel">
         <h2>${ladnaData(mtDzien)}</h2>
-        ${szczegoly}
+        ${szczegoly || '<p class="pusto">Tego dnia nie było tego ćwiczenia.</p>'}
       </section>
     </div>
     <section class="panel" style="margin-top: 16px;">
