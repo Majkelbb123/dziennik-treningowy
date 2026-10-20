@@ -29,10 +29,15 @@
   --pr: #7A5C00;
   --pr-bg: #F6EBC8;
   --danger: #A4312A;
-  --t-ciezar: #3A5F8F;
-  --t-powtorzenia: #A44A42;
-  --t-czas: #A7811F;
-  --t-cardio: #3E7A5A;
+  --t-ciezar: #2563EB;
+  --t-powtorzenia: #DC2626;
+  --t-czas: #D97706;
+  --t-cardio: #16A34A;
+  /* każda zakładka ma swój kolor — patrz [data-zakladka] niżej */
+  --k-trening: #15803D;
+  --k-wyniki: #1D4ED8;
+  --k-plan: #7C3AED;
+  --k-treningi: #C2410C;
   --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -40,17 +45,24 @@
   :root:not([data-theme="light"]) {
     --bg: #0F1217; --surface: #171B22; --ink: #E6E8EB; --muted: #9AA3AE; --line: #2A303A;
     --accent: #8EB0DA; --accent-ink: #0F1217; --pr: #E2C46A; --pr-bg: #352D12; --danger: #E0766C;
-    --t-ciezar: #8EB0DA; --t-powtorzenia: #D98880; --t-czas: #D9B860; --t-cardio: #7DBF98;
+    --t-ciezar: #7AA7FF; --t-powtorzenia: #F87171; --t-czas: #FBBF24; --t-cardio: #4ADE80;
+    --k-trening: #4ADE80; --k-wyniki: #7AA7FF; --k-plan: #B794F6; --k-treningi: #FB923C;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0F1217; --surface: #171B22; --ink: #E6E8EB; --muted: #9AA3AE; --line: #2A303A;
   --accent: #8EB0DA; --accent-ink: #0F1217; --pr: #E2C46A; --pr-bg: #352D12; --danger: #E0766C;
-  --t-ciezar: #8EB0DA; --t-powtorzenia: #D98880; --t-czas: #D9B860; --t-cardio: #7DBF98;
+  --t-ciezar: #7AA7FF; --t-powtorzenia: #F87171; --t-czas: #FBBF24; --t-cardio: #4ADE80;
+  --k-trening: #4ADE80; --k-wyniki: #7AA7FF; --k-plan: #B794F6; --k-treningi: #FB923C;
   color-scheme: dark;
 }
 
+/* Kolor akcentu zależy od otwartej zakładki: przyciski, podkreślenie, kalendarz, wykres zmieniają barwę razem z nią */
+:root[data-zakladka="trening"] { --accent: var(--k-trening); }
+:root[data-zakladka="wyniki"] { --accent: var(--k-wyniki); }
+:root[data-zakladka="plan"] { --accent: var(--k-plan); }
+:root[data-zakladka="treningi"] { --accent: var(--k-treningi); }
 * { box-sizing: border-box; }
 /* przesunięcie palcem w bok ma zmieniać zakładkę, a nie cofać przeglądarkę do poprzedniej strony */
 html, body { overscroll-behavior-x: none; }
@@ -77,6 +89,10 @@ header h1 {
   text-wrap: balance;
 }
 header .data { color: var(--muted); margin: 6px 0 0; }
+header h1::before {
+  content: ""; display: block; width: 56px; height: 4px; border-radius: 2px; margin-bottom: 10px;
+  background: linear-gradient(90deg, var(--k-trening) 0 33%, var(--k-wyniki) 33% 66%, var(--k-plan) 66%);
+}
 
 /* Nagłówek: tytuł po lewej, ikonka konta po prawej */
 .naglowek { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -113,12 +129,14 @@ header .data { color: var(--muted); margin: 6px 0 0; }
   border-radius: 0; cursor: pointer;
 }
 .zakladki button:hover { color: var(--ink); }
-.zakladki button[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.zakladki button[aria-selected="true"] { color: var(--accent); font-weight: 600; border-bottom: 3px solid var(--accent); }
+#tab-trening:hover { color: var(--k-trening); } #tab-wyniki:hover { color: var(--k-wyniki); } #tab-plan:hover { color: var(--k-plan); }
 
 /* Sekcje */
 .siatka { display: grid; gap: 16px; grid-template-columns: 1fr; }
 @media (min-width: 820px) { .siatka.dwie { grid-template-columns: 1.05fr 1fr; align-items: start; } }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; min-width: 0; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+.panel h2::before { content: ""; display: inline-block; width: 4px; height: .9em; border-radius: 2px; background: var(--accent); margin-right: 8px; vertical-align: -.08em; }
 .panel h2 {
   font-family: var(--font-display); font-weight: 600;
   font-size: 1.1rem; letter-spacing: -.01em; margin: 0 0 14px;
@@ -179,7 +197,10 @@ details.nowe .rzad { margin-top: 10px; }
 
 /* Rekordy */
 .rekordy { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-.rekord { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0; }
+.rekord { --kolor: var(--accent); border: 1px solid var(--line); border-left: 4px solid var(--kolor); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; min-width: 0;
+  background: color-mix(in srgb, var(--kolor) 7%, var(--surface)); }
+.rekord.t-ciezar { --kolor: var(--t-ciezar); } .rekord.t-powtorzenia { --kolor: var(--t-powtorzenia); }
+.rekord.t-czas { --kolor: var(--t-czas); } .rekord.t-cardio { --kolor: var(--t-cardio); }
 .rekord .nazwa { display: flex; align-items: center; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--muted); }
 .rekord .nazwa span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rekord .wart { font-family: var(--font-display); font-weight: 600; font-size: 1.55rem; line-height: 1.15; letter-spacing: -.02em; }
@@ -343,7 +364,7 @@ details.trening .cw-wiersz { background: var(--bg); }
 .zakladki button.trwa::after { content: ""; display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: var(--t-cardio); margin-left: .35em; vertical-align: .12em; }
 .tr-start { display: grid; gap: 8px; }
 .tr-start .cw-wiersz.tr-dzis { border: 2px solid var(--accent); }
-.tr-ile { font-family: var(--font-display); font-weight: 600; font-size: 1rem; min-width: 2.2rem; height: 2.2rem; border-radius: 8px; background: var(--bg); display: grid; place-items: center; color: var(--muted); }
+.tr-ile { font-family: var(--font-display); font-weight: 600; font-size: 1rem; min-width: 2.2rem; height: 2.2rem; border-radius: 8px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); display: grid; place-items: center; color: var(--accent); }
 .tr-dzis .tr-ile { background: var(--accent); color: var(--accent-ink); }
 .tr-lista { display: grid; gap: 12px; margin-top: 12px; }
 .tr-glowa { display: flex; align-items: center; gap: 8px; }
@@ -656,6 +677,7 @@ function pokazZakladke(nazwa, wstecz = false) {
     for (const z of ZAKLADKI) { $('tab-' + z).setAttribute('aria-selected', 'false'); $('v-' + z).hidden = true; }
     for (const p of PODSTRONY) $('v-' + p).hidden = p !== nazwa;
     if (nazwa === 'konto') renderKonto();
+    document.documentElement.dataset.zakladka = nazwa;   // kolor akcentu podstrony
     window.scrollTo({ top: 0 });
     return;
   }
@@ -666,9 +688,11 @@ function pokazZakladke(nazwa, wstecz = false) {
     $('tab-' + z).setAttribute('aria-selected', String(z === nazwa));
     $('v-' + z).hidden = z !== nazwa;
   }
+  document.documentElement.dataset.zakladka = nazwa;   // kolor akcentu zakładki
   try { localStorage.setItem('zakladka', nazwa); } catch (e) {}
 }
 for (const z of ZAKLADKI) $('tab-' + z).onclick = () => pokazZakladke(z);
+document.documentElement.dataset.zakladka = 'wyniki';   // na start (zanim wczytamy zapamiętaną zakładkę)
 
 // ===== Przesuwanie palcem między zakładkami =====
 // Palec w lewo → następna zakładka (Trening → Wyniki → Plan), w prawo → poprzednia.
@@ -1108,7 +1132,7 @@ function renderRekordy() {
     }
     else if (w.typ === 'cardio') { wart = `${fmt(v)}<small>km</small>`; if (w.czasSek) dod = ` · ${fmtCzas(w.czasSek)}`; }
     else wart = `${fmt(v)}<small>${TYPY[w.typ].jedn}</small>`;
-    return `<div class="rekord">
+    return `<div class="rekord t-${esc(w.typ)}">
       <div class="nazwa"><span class="typ ${esc(w.typ)}"></span><span title="${esc(w.cwiczenie)}">${esc(w.cwiczenie)}</span></div>
       <div class="wart">${wart}</div>
       <div class="kiedy">${krotkaData(w.data)}${dod}</div></div>`;
