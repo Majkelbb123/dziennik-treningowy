@@ -40,6 +40,7 @@
   --k-wyniki: #1D4ED8;
   --k-plan: #7C3AED;
   --k-treningi: #C2410C;
+  --k-pomiary: #0E7490;
   --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -48,7 +49,7 @@
     --bg: #0F1217; --surface: #171B22; --ink: #E6E8EB; --muted: #9AA3AE; --line: #2A303A;
     --accent: #8EB0DA; --accent-ink: #0F1217; --pr: #E2C46A; --pr-bg: #352D12; --danger: #E0766C;
     --t-ciezar: #7AA7FF; --t-powtorzenia: #F87171; --t-czas: #FBBF24; --t-cardio: #4ADE80;
-    --k-trening: #4ADE80; --k-wyniki: #7AA7FF; --k-plan: #B794F6; --k-treningi: #FB923C;
+    --k-trening: #4ADE80; --k-wyniki: #7AA7FF; --k-plan: #B794F6; --k-treningi: #FB923C; --k-pomiary: #22D3EE;
     color-scheme: dark;
   }
 }
@@ -56,7 +57,7 @@
   --bg: #0F1217; --surface: #171B22; --ink: #E6E8EB; --muted: #9AA3AE; --line: #2A303A;
   --accent: #8EB0DA; --accent-ink: #0F1217; --pr: #E2C46A; --pr-bg: #352D12; --danger: #E0766C;
   --t-ciezar: #7AA7FF; --t-powtorzenia: #F87171; --t-czas: #FBBF24; --t-cardio: #4ADE80;
-  --k-trening: #4ADE80; --k-wyniki: #7AA7FF; --k-plan: #B794F6; --k-treningi: #FB923C;
+  --k-trening: #4ADE80; --k-wyniki: #7AA7FF; --k-plan: #B794F6; --k-treningi: #FB923C; --k-pomiary: #22D3EE;
   color-scheme: dark;
 }
 
@@ -65,6 +66,7 @@
 :root[data-zakladka="wyniki"] { --accent: var(--k-wyniki); }
 :root[data-zakladka="plan"] { --accent: var(--k-plan); }
 :root[data-zakladka="treningi"] { --accent: var(--k-treningi); }
+:root[data-zakladka="pomiary"] { --accent: var(--k-pomiary); }
 * { box-sizing: border-box; }
 /* przesunięcie palcem w bok ma zmieniać zakładkę, a nie cofać przeglądarkę do poprzedniej strony */
 html, body { overscroll-behavior-x: none; }
@@ -239,6 +241,33 @@ details.nowe .rzad { margin-top: 10px; }
 .wykres-box .punkt { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .wykres-box .ostatni { fill: var(--accent); }
 .wykres-box text.etyk-ost { fill: var(--ink); font-weight: 600; font-size: 13px; }
+/* Przełącznik nad wykresem: najcięższa seria ↔ szacowane 1RM */
+.przelacznik { display: inline-flex; gap: 2px; padding: 2px; border: 1.5px solid var(--line); border-radius: 8px; margin-bottom: 10px; }
+.przelacznik button { font: inherit; font-size: .85rem; font-weight: 600; background: transparent; color: var(--muted); border: 0; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.przelacznik button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.wykres-info { color: var(--muted); font-size: .9rem; margin: 8px 0 0; }
+.wykres-info b { color: var(--ink); font-weight: 600; }
+.wykres-info .plus { color: var(--t-cardio); font-weight: 600; }
+.wykres-info .minus { color: var(--danger); font-weight: 600; }
+
+/* Notatka na stałe przy ćwiczeniu (np. "siedzisko na 4") */
+.notatka-cw { display: flex; gap: 8px; align-items: baseline; margin: 0 0 10px; padding: 7px 10px; border-left: 3px solid var(--t-czas); border-radius: 6px;
+  background: color-mix(in srgb, var(--t-czas) 11%, var(--surface)); font-size: .92rem; overflow-wrap: anywhere; }
+.notatka-cw span { flex: 1; min-width: 0; }
+.notatka-cw .btn { flex: none; }
+.notatka-edycja { display: flex; gap: 8px; margin: 0 0 10px; }
+.notatka-edycja input { flex: 1; }
+
+/* Pomiary ciała */
+.pomiary-pola { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+/* zmiana w kolorze akcentu: czy "w dół" jest dobrze, zależy od celu (waga w dół, biceps w górę) */
+.rekord .zmiana { font-weight: 600; color: var(--accent); }
+.pomiar { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 0; }
+.pomiar + .pomiar { border-top: 1px dashed var(--line); }
+.pomiar .kiedy { font-weight: 600; }
+.pomiar .wartosci { grid-column: 1; color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+.pomiar .wartosci b { color: var(--ink); font-weight: 600; }
+.pomiar .akcje { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 6px; }
 
 /* Historia */
 .dzien + .dzien { margin-top: 16px; }
@@ -448,6 +477,7 @@ body.z-przerwa .app { padding-bottom: 110px; }
         <p class="konto-kto" id="konto-kto"></p>
         <button type="button" role="menuitem" id="konto-otworz">Moje konto</button>
         <button type="button" role="menuitem" id="konto-treningi">Moje treningi</button>
+        <button type="button" role="menuitem" id="konto-pomiary">Pomiary ciała</button>
       </div>
     </div>
   </header>
@@ -483,6 +513,7 @@ body.z-przerwa .app { padding-bottom: 110px; }
             </div>
           </div>
           <div id="f-cw-lista" class="wybor-lista" hidden></div>
+          <p id="f-cw-notatka" class="notatka-cw" hidden></p>
           <div id="f-pola"></div>
           <label>Notatka (opcjonalnie) <input id="f-notatka" placeholder="np. lekko, dobra technika" maxlength="200"></label>
           <div class="przyciski">
@@ -534,6 +565,40 @@ body.z-przerwa .app { padding-bottom: 110px; }
     <div id="treningi"><p class="pusto">Ładowanie…</p></div>
   </main>
 
+  <!-- POMIARY CIAŁA (waga i obwody): otwierane z menu konta, nie jest zakładką -->
+  <main id="v-pomiary" hidden>
+    <button type="button" class="btn cichy maly" id="pomiary-wstecz">‹ Wróć</button>
+    <div class="siatka dwie" style="margin-top: 12px;">
+      <section class="panel">
+        <h2 id="p-tytul">Zapisz pomiar <small>wpisz tylko to, co zmierzyłeś</small></h2>
+        <form id="f-pomiar" novalidate>
+          <label style="max-width: 12rem;">Data <input type="date" id="p-data"></label>
+          <div class="pomiary-pola" id="p-pola"></div>
+          <div class="przyciski">
+            <button class="btn" type="submit" id="p-zapisz">Zapisz pomiar</button>
+            <button class="btn cichy" type="button" id="p-anuluj" hidden>Anuluj edycję</button>
+          </div>
+          <p class="komunikat" id="p-kom" role="status"></p>
+        </form>
+      </section>
+      <section class="panel">
+        <h2>Ostatnie pomiary <small>zmiana od poprzedniego pomiaru</small></h2>
+        <div class="rekordy" id="p-kafelki"><p class="pusto">Ładowanie…</p></div>
+      </section>
+    </div>
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Wykres</h2>
+      <div class="wykres-gora">
+        <label>Pomiar <select id="p-co"></select></label>
+      </div>
+      <div id="p-wykres" class="wykres-box"></div>
+    </section>
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Wszystkie pomiary</h2>
+      <div id="p-lista"><p class="pusto">Ładowanie…</p></div>
+    </section>
+  </main>
+
   <!-- OKIENKO 3: PLAN TRENINGOWY -->
   <main id="v-plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
     <div id="plan" class="plan"><p class="pusto">Ładowanie…</p></div>
@@ -553,6 +618,14 @@ body.z-przerwa .app { padding-bottom: 110px; }
       <h2>Moje treningi <small>ćwiczenia, kalendarz i serie</small></h2>
       <div class="przyciski" style="margin-top: 12px;">
         <button class="btn" type="button" id="konto-do-treningow">Otwórz moje treningi ›</button>
+      </div>
+    </section>
+
+    <!-- Wejście do Pomiarów ciała -->
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Pomiary ciała <small id="konto-pomiary-info">waga i obwody</small></h2>
+      <div class="przyciski" style="margin-top: 12px;">
+        <button class="btn" type="button" id="konto-do-pomiarow">Otwórz pomiary ›</button>
       </div>
     </section>
 
@@ -630,6 +703,7 @@ let db = null;
 let cwiczenia = null;   // [{id, nazwa, typ}]
 let wyniki = null;      // [{id, data, cwiczenie, typ, serie|km+czasSek, notatka, przyklad}]
 let plan = null;        // {pon: {tytul, pozycje:[{cwiczenie, cel}]}, ...}
+let pomiary = null;     // [{id = data, data, waga, talia, ...}] — pomiary ciała, jeden wpis na dzień
 let serie = [{}];       // wiersze serii w formularzu
 let hDzien = null, hMiesiac = null;   // historia: wybrany dzień i pokazany miesiąc kalendarza
 const szkic = {};       // to, co wpisujesz w planie, zanim zapiszesz
@@ -696,8 +770,8 @@ function idRekordow() {
 
 // ===== Zakładki =====
 const ZAKLADKI = ['trening', 'wyniki', 'plan'];
-const PODSTRONY = ['konto', 'treningi'];   // otwierane z menu konta — nie mają zakładki na górze
-const powrot = { konto: 'wyniki', treningi: 'wyniki' };   // dokąd wraca "‹ Wróć" z każdej podstrony
+const PODSTRONY = ['konto', 'treningi', 'pomiary'];   // otwierane z menu konta — nie mają zakładki na górze
+const powrot = { konto: 'wyniki', treningi: 'wyniki', pomiary: 'wyniki' };   // dokąd wraca "‹ Wróć" z każdej podstrony
 function pokazZakladke(nazwa, wstecz = false) {
   if (PODSTRONY.includes(nazwa)) {
     // zapamiętujemy, skąd przyszliśmy (zakładka albo np. Moje konto → Moje treningi)
@@ -877,6 +951,9 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('f-cw-l
 function renderPola(wyczysc) {
   renderWyborCw();   // napis na przycisku wyboru zawsze zgodny z wybranym ćwiczeniem
   const cw = cwPoNazwie($('f-cw').value), box = $('f-pola');
+  // notatka na stałe wybranego ćwiczenia (np. ustawienie maszyny) — tylko do podejrzenia
+  $('f-cw-notatka').hidden = !cw?.notatka;
+  $('f-cw-notatka').innerHTML = cw?.notatka ? `<span>📌 ${esc(cw.notatka)}</span>` : '';
   if (!cw) { box.innerHTML = ''; return; }
   if (cw.typ === 'cardio') {
     // przy odświeżeniu zachowujemy to, co już wpisane (chyba że czyścimy formularz)
@@ -1035,6 +1112,8 @@ function htmlFormularzaCw(p) {
     </div>
     <label>Trening, do którego należy
       <input id="${p}-trening" list="lista-treningow" placeholder="np. push, pull, nogi" maxlength="40" autocomplete="off"></label>
+    <label>Notatka na stałe (opcjonalnie)
+      <input id="${p}-notatka" placeholder="np. siedzisko na 4, chwyt szeroki" maxlength="200" autocomplete="off"></label>
     <div class="przyciski">
       <button class="btn" type="button" id="${p}-dodaj">Dodaj ćwiczenie</button>
       <button class="btn cichy" type="button" id="${p}-anuluj" hidden>Anuluj edycję</button>
@@ -1046,6 +1125,7 @@ function wyczyscFormularzCw(p, zostawTrening) {
   edycja[p] = null;
   $(p + '-nazwa').value = ''; $(p + '-nazwa').disabled = false; $(p + '-typ').disabled = false;
   if (!zostawTrening) $(p + '-trening').value = '';
+  $(p + '-notatka').value = '';
   $(p + '-dodaj').textContent = 'Dodaj ćwiczenie'; $(p + '-anuluj').hidden = true;
   if (p === 'm') $('m-panel-tytul').textContent = '+ Nowe ćwiczenie';
 }
@@ -1057,14 +1137,15 @@ function edytujCwiczenie(p, id) {
   $(p + '-nazwa').value = c.nazwa; $(p + '-nazwa').disabled = false;
   $(p + '-typ').value = c.typ; $(p + '-typ').disabled = maWyniki;
   $(p + '-trening').value = c.trening || '';
+  $(p + '-notatka').value = c.notatka || '';
   $(p + '-dodaj').textContent = 'Zapisz zmiany'; $(p + '-anuluj').hidden = false;
   if (p === 'm') $('m-panel-tytul').textContent = 'Edytujesz: ' + c.nazwa;
-  komCw(p, 'Edytujesz: ' + c.nazwa + '. Możesz zmienić nazwę, ' + (maWyniki ? '' : 'rodzaj ') + 'i trening.', '');
+  komCw(p, 'Edytujesz: ' + c.nazwa + '. Możesz zmienić nazwę, ' + (maWyniki ? '' : 'rodzaj, ') + 'trening i notatkę.', '');
 }
 async function zapiszCwiczenie(p) {
   if (!db) return komCw(p, 'Zapis jest teraz niedostępny.', 'blad');
   const nazwa = $(p + '-nazwa').value.trim(), typ = $(p + '-typ').value;
-  const trening = $(p + '-trening').value.trim();
+  const trening = $(p + '-trening').value.trim(), notatka = $(p + '-notatka').value.trim();
   if (edycja[p]) {           // zapis zmian w istniejącym ćwiczeniu
     const c = (cwiczenia || []).find(x => x.id === edycja[p]);
     if (!c) { wyczyscFormularzCw(p, false); return komCw(p, 'To ćwiczenie zostało już usunięte.', 'blad'); }
@@ -1073,7 +1154,7 @@ async function zapiszCwiczenie(p) {
     if (nowaNazwa && cwPoNazwie(nazwa)) return komCw(p, 'Ćwiczenie o takiej nazwie już istnieje.', 'blad');
     $(p + '-dodaj').disabled = true;
     try {
-      const zmiany = { trening };
+      const zmiany = { trening, notatka };
       if (nowaNazwa) zmiany.nazwa = nazwa;
       if (!$(p + '-typ').disabled) zmiany.typ = typ;
       await db.doc('cwiczenia/' + c.id).update(zmiany);
@@ -1095,7 +1176,7 @@ async function zapiszCwiczenie(p) {
   if (!nazwa) return komCw(p, 'Wpisz nazwę nowego ćwiczenia.', 'blad');
   if (cwPoNazwie(nazwa)) return komCw(p, 'Takie ćwiczenie już jest na liście.', 'blad');
   try {
-    await db.collection('cwiczenia').doc(slug(nazwa)).set({ nazwa, typ, trening });
+    await db.collection('cwiczenia').doc(slug(nazwa)).set({ nazwa, typ, trening, ...(notatka && { notatka }) });
     wyczyscFormularzCw(p, true);   // trening zostaje — łatwiej dodać kilka ćwiczeń do tego samego
     doWybrania = nazwa;
     komCw(p, 'Dodano: ' + nazwa + (trening ? ' (trening: ' + trening + ')' : ''), 'ok');
@@ -1177,21 +1258,53 @@ function ladneSkale(lo, hi, n) {
   for (let t = a; t <= b + krok / 2; t += krok) ticki.push(Math.round(t * 1000) / 1000);
   return { a, b, ticki };
 }
+// Szacowane 1RM (ile kg podniósłbyś raz) — wzór Epleya: ciężar × (1 + powtórzenia / 30).
+// Dzięki temu da się porównać np. 80 kg × 8 z 90 kg × 3. Przy 1 powtórzeniu to po prostu ciężar.
+const jedenRM = s => s.powt <= 1 ? s.kg : s.kg * (1 + s.powt / 30);
+const najlepszy1RM = w => Math.max(0, ...(w.serie || []).map(s => jedenRM({ kg: Number(s.kg) || 0, powt: Number(s.powt) || 0 })));
+// Co pokazuje wykres ćwiczeń z ciężarem: 'kg' = najcięższa seria, '1rm' = szacowane 1RM (zapamiętane w telefonie)
+let trybWykresu = 'kg';
+try { if (localStorage.getItem('wykres-tryb') === '1rm') trybWykresu = '1rm'; } catch {}
+
 // Rysuje wykres w podanym miejscu (box) dla podanego ćwiczenia.
 // Bez argumentów: wykres w zakładce Wyniki, dla ćwiczenia wybranego z listy.
 function rysujWykres(box = $('wykres'), nazwa = $('w-cw').value) {
   if (!wyniki || !cwiczenia || !box) return;
   const cw = cwPoNazwie(nazwa) || (wyniki.find(w => w.cwiczenie === nazwa) && { typ: wyniki.find(w => w.cwiczenie === nazwa).typ });
   if (!cw) { box.innerHTML = '<p class="pusto">Dodaj ćwiczenie, żeby zobaczyć wykres.</p>'; return; }
+  const rm = cw.typ === 'ciezar' && trybWykresu === '1rm';
+  const miara = rm ? najlepszy1RM : wartosc;
   // Jeden punkt na dzień: najlepszy wynik z tego dnia
   const naDzien = new Map();
-  for (const w of wyniki.filter(w => w.cwiczenie === nazwa)) naDzien.set(w.data, Math.max(naDzien.get(w.data) ?? 0, wartosc(w)));
-  const pkt = [...naDzien].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ d, t: naDate(d).getTime(), v }));
+  for (const w of wyniki.filter(w => w.cwiczenie === nazwa)) naDzien.set(w.data, Math.max(naDzien.get(w.data) ?? 0, miara(w)));
+  const pkt = [...naDzien].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ d, t: naDate(d).getTime(), v: rm ? Math.round(v * 2) / 2 : v }));
   const jedn = TYPY[cw.typ].jedn;
+  // przełącznik tylko przy ćwiczeniach z ciężarem (przy pompkach czy bieganiu 1RM nie ma sensu)
+  const przelacznik = cw.typ !== 'ciezar' ? '' : `<div class="przelacznik" role="group" aria-label="Co pokazać na wykresie">
+      <button type="button" data-wykres-tryb="kg" aria-pressed="${!rm}">Najcięższa seria</button>
+      <button type="button" data-wykres-tryb="1rm" aria-pressed="${rm}">Szacowane 1RM</button></div>`;
   if (pkt.length < 2) {
-    box.innerHTML = `<p class="pusto">${pkt.length ? 'Masz 1 trening z tym ćwiczeniem.' : 'Brak wyników dla tego ćwiczenia.'} Wykres pojawi się po co najmniej 2 treningach.</p>`;
+    box.innerHTML = przelacznik + `<p class="pusto">${pkt.length ? 'Masz 1 trening z tym ćwiczeniem.' : 'Brak wyników dla tego ćwiczenia.'} Wykres pojawi się po co najmniej 2 treningach.</p>`;
     return;
   }
+  // Podsumowanie pod wykresem: wynik teraz i zmiana od pierwszego treningu
+  const pierwszy = pkt[0], teraz = pkt[pkt.length - 1], roznica = teraz.v - pierwszy.v;
+  const zmiana = roznica ? `<span class="${roznica > 0 ? 'plus' : 'minus'}">${roznica > 0 ? '+' : '−'}${fmt(Math.abs(roznica))} ${jedn}</span>` : 'bez zmian';
+  const info = `<p class="wykres-info">${rm ? 'Szacowane 1RM' : 'Ostatnio'}: <b>${fmt(teraz.v)} ${jedn}</b> · ${zmiana} od ${krotkaData(pierwszy.d)}` +
+    (rm ? '<br>1RM = ile kg podniósłbyś jeden raz, liczone z najlepszej serii (kg × powtórzenia).' : '') + '</p>';
+  box.innerHTML = przelacznik + svgWykresu(box, pkt, jedn, 'Postęp: ' + nazwa) + info;
+}
+// Kliknięcie przełącznika nad którymkolwiek wykresem ćwiczenia → zmień tryb wszędzie
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-wykres-tryb]'); if (!b) return;
+  trybWykresu = b.dataset.wykresTryb;
+  try { localStorage.setItem('wykres-tryb', trybWykresu); } catch {}
+  rysujWykres(); rysujWykresMt();
+});
+
+// Sam rysunek: linia przez punkty [{d: data, t: czas w ms, v: wartość}] (min. 2 punkty).
+// Wspólny dla wykresu ćwiczeń i wykresu pomiarów ciała.
+function svgWykresu(box, pkt, jedn, opisWykresu) {
   const W = Math.max(280, box.clientWidth || 600), H = 230, m = { l: 44, r: 20, t: 22, b: 30 };
   const { a, b, ticki } = ladneSkale(Math.min(...pkt.map(p => p.v)), Math.max(...pkt.map(p => p.v)), 4);
   const t0 = pkt[0].t, t1 = pkt[pkt.length - 1].t;
@@ -1203,7 +1316,7 @@ function rysujWykres(box = $('wykres'), nazwa = $('w-cw').value) {
   const podpisy = [pkt[0], pkt[pkt.length - 1]];
   if (pkt.length > 2 && W > 420) podpisy.splice(1, 0, pkt[Math.floor(pkt.length / 2)]);
   const ost = pkt[pkt.length - 1];
-  box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Postęp: ${esc(nazwa)}">
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opisWykresu)}">
     ${ticki.map(t => `<line class="siatka-y" x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}"/>
       <text x="${m.l - 8}" y="${y(t) + 4}" text-anchor="end">${fmt(t)}</text>`).join('')}
     <text x="${m.l - 8}" y="${m.t - 9}" text-anchor="end">${jedn}</text>
@@ -1219,9 +1332,10 @@ $('w-cw').addEventListener('change', () => rysujWykres());
 function rysujWykresMt() { const b = $('mt-wykres'); if (b && mtCw) rysujWykres(b, mtCw); }
 // Gdy zmienia się szerokość (obrót telefonu, zmiana okna) — rysujemy wykresy od nowa
 let ramka = 0;
-const przerysuj = new ResizeObserver(() => { cancelAnimationFrame(ramka); ramka = requestAnimationFrame(() => { rysujWykres(); rysujWykresMt(); }); });
+const przerysuj = new ResizeObserver(() => { cancelAnimationFrame(ramka); ramka = requestAnimationFrame(() => { rysujWykres(); rysujWykresMt(); rysujWykresPomiarow(); }); });
 przerysuj.observe($('wykres'));
 przerysuj.observe($('treningi'));
+przerysuj.observe($('p-wykres'));
 
 // ===== Kalendarz (wspólny dla Historii i Moich treningów) =====
 // miesiac = "2026-10", dni = zbiór dat z treningiem, p = przedrostek atrybutów (np. "h" → data-h-dzien)
@@ -1541,6 +1655,7 @@ function renderTreningi() {
         <p class="pusto" style="margin: -4px 0 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           ${cwPoNazwie(mtCw) ? `<button type="button" class="btn cichy maly" data-mt-edytuj="${esc(cwPoNazwie(mtCw).id)}">Edytuj</button>` : ''}
           <button type="button" class="btn cichy maly" data-mt-usun="${esc(mtCw)}">Usuń ćwiczenie</button></p>
+        ${cwPoNazwie(mtCw)?.notatka ? `<p class="notatka-cw"><span>📌 ${esc(cwPoNazwie(mtCw).notatka)}</span></p>` : ''}
         ${htmlKalendarza(mtMiesiac, dniTreningu, mtDzien, 'mt')}
       </section>
       <section class="panel">
@@ -1584,6 +1699,7 @@ const zapiszSesje = () => { try { sesja ? localStorage.setItem(KLUCZ_SESJA, JSON
 let trWybor = false;          // czy otwarta lista "Dodaj ćwiczenie"
 let trPodsumowanie = null;    // co pokazać po zapisaniu treningu
 const trOtwarte = new Set();  // rozwinięte grupy na liście "Dodaj ćwiczenie"
+let trNotatka = null;         // numer karty, na której zmieniasz notatkę ćwiczenia
 
 // Jakie pola ma seria w danym rodzaju ćwiczenia: [klucz, napis, podpowiedź]
 const POLA_TR = {
@@ -1620,7 +1736,7 @@ function zacznijTrening(nazwa, lista) {
   sesja = { start: Date.now(), data: dzisISO(), nazwa, przerwa, koniecPrzerwy: null, cw: [] };
   lista.forEach(dodajDoSesji);
   trWybor = !lista.length;          // pusty trening → od razu lista do wyboru ćwiczeń
-  trPodsumowanie = null;
+  trPodsumowanie = null; trNotatka = null;
   zapiszSesje(); renderTrening();
   window.scrollTo({ top: 0 });
 }
@@ -1676,13 +1792,24 @@ function htmlKartyTreningu(c, i) {
       <button type="button" class="tr-ok" data-tr-ok="${i}-${j}" aria-pressed="${!!s.ok}" aria-label="Seria ${j + 1} zrobiona">✓</button>
       <button type="button" class="x" data-tr-usun="${i}-${j}" aria-label="Usuń serię ${j + 1}">×</button>
     </div>`).join('');
+  // notatka na stałe (np. "siedzisko na 4") — można ją zmienić od razu na siłowni
+  const cw = cwPoNazwie(c.nazwa), notatka = cw?.notatka || '';
+  const htmlNotatki = !cw ? ''
+    : trNotatka === i ? `<div class="notatka-edycja">
+        <input id="tr-notatka-pole" value="${esc(notatka)}" maxlength="200" placeholder="np. siedzisko na 4" autocomplete="off" aria-label="Notatka do ćwiczenia ${esc(c.nazwa)}">
+        <button type="button" class="btn maly" data-tr-notatka-zapisz="${i}">Zapisz</button>
+        <button type="button" class="btn cichy maly" data-tr-notatka-anuluj>Anuluj</button></div>`
+    : notatka ? `<p class="notatka-cw"><span>📌 ${esc(notatka)}</span><button type="button" class="btn cichy maly" data-tr-notatka="${i}">Zmień</button></p>`
+    : '';
   return `<section class="panel tr-cw" id="tr-cw-${i}">
     <div class="tr-glowa"><span class="typ ${esc(typ)}"></span><h3>${esc(c.nazwa)}</h3>
       <button type="button" class="x" data-tr-usun-cw="${i}" aria-label="Usuń ${esc(c.nazwa)} z treningu">×</button></div>
     <p class="tr-info">${info}</p>
+    ${htmlNotatki}
     ${c.serie.length ? `<div class="tr-seria ${jedno} etyk" aria-hidden="true"><span></span>${pola.map(p => `<span>${p[1]}</span>`).join('')}<span></span><span></span></div>` : ''}
     ${serie}
-    ${typ === 'cardio' && c.serie.length ? '' : `<div class="przyciski"><button type="button" class="btn cichy maly" data-tr-seria="${i}">+ Seria</button></div>`}
+    <div class="przyciski">${typ === 'cardio' && c.serie.length ? '' : `<button type="button" class="btn cichy maly" data-tr-seria="${i}">+ Seria</button>`}
+      ${cw && !notatka && trNotatka !== i ? `<button type="button" class="btn cichy maly" data-tr-notatka="${i}">+ Notatka</button>` : ''}</div>
   </section>`;
 }
 
@@ -1783,6 +1910,20 @@ async function zakonczTrening(przycisk) {
   renderTrening(); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+async function zapiszNotatkeTr(i) {
+  const cw = cwPoNazwie(sesja?.cw[i]?.nazwa), pole = $('tr-notatka-pole');
+  if (!cw || !pole || !db) return;
+  try { await db.doc('cwiczenia/' + cw.id).update({ notatka: pole.value.trim() }); }
+  catch { return komTr('Nie udało się zapisać notatki.', 'blad'); }
+  trNotatka = null; renderTrening();
+}
+// Enter w polu notatki = Zapisz, Escape = Anuluj
+$('trening').addEventListener('keydown', e => {
+  if (e.target.id !== 'tr-notatka-pole') return;
+  if (e.key === 'Enter') { e.preventDefault(); zapiszNotatkeTr(trNotatka); }
+  if (e.key === 'Escape') { trNotatka = null; renderTrening(); }
+});
+
 // Dwuklik "na pewno?" — jak przy usuwaniu w innych miejscach strony
 function potwierdzTr(b, tekst) {
   if (b.classList.contains('potwierdz')) return true;
@@ -1805,6 +1946,14 @@ $('trening').addEventListener('click', e => {
   if (d.trZamknij !== undefined) { trPodsumowanie = null; return renderTrening(); }
   if (d.trHistoria !== undefined) { hDzien = dzisISO(); hMiesiac = null; renderHistoria(); pokazZakladke('wyniki'); return $('historia').scrollIntoView({ behavior: 'smooth' }); }
   if (!sesja) return;
+  // --- notatka do ćwiczenia (zapisuje się od razu w ćwiczeniu, nie w sesji) ---
+  if (d.trNotatka !== undefined) {
+    trNotatka = Number(d.trNotatka); renderTrening();
+    const pole = $('tr-notatka-pole'); pole?.focus(); pole?.setSelectionRange(pole.value.length, pole.value.length);
+    return;
+  }
+  if (d.trNotatkaAnuluj !== undefined) { trNotatka = null; return renderTrening(); }
+  if (d.trNotatkaZapisz !== undefined) return zapiszNotatkeTr(Number(d.trNotatkaZapisz));
   // --- trening w trakcie ---
   if (d.trOk) {
     const [i, j] = d.trOk.split('-').map(Number), c = sesja.cw[i], s = c.serie[j];
@@ -1905,6 +2054,127 @@ $('przerwa').addEventListener('click', e => {
   zapiszSesje(); tik();
 });
 
+// ===== Pomiary ciała =====
+// Jeden wpis na dzień (id = data). Każde pole jest opcjonalne — wpisujesz tylko to, co zmierzyłeś.
+const POMIARY = [
+  ['waga', 'Waga', 'kg', '80,5'],
+  ['talia', 'Talia', 'cm', '84'],
+  ['klatka', 'Klatka piersiowa', 'cm', '102'],
+  ['biodra', 'Biodra', 'cm', '98'],
+  ['ramie', 'Ramię (biceps)', 'cm', '36'],
+  ['udo', 'Udo', 'cm', '58'],
+];
+let pEdycja = null;   // data edytowanego pomiaru (null = nowy)
+$('p-pola').innerHTML = POMIARY.map(([k, nazwa, jedn, ph]) =>
+  `<label>${nazwa} (${jedn}) <input id="p-${k}" inputmode="decimal" placeholder="${ph}" autocomplete="off"></label>`).join('');
+$('p-co').innerHTML = POMIARY.map(([k, nazwa]) => `<option value="${k}">${nazwa}</option>`).join('');
+$('p-data').value = dzisISO();
+const pomiaryChronologicznie = () => [...(pomiary || [])].sort((a, b) => a.data.localeCompare(b.data));
+const komP = (t, k) => { $('p-kom').textContent = t; $('p-kom').className = 'komunikat ' + (k || ''); };
+
+function renderPomiary() {
+  if (!pomiary) return;
+  const ws = pomiaryChronologicznie();
+  $('konto-pomiary-info').textContent = ws.length ? 'ostatnio ' + krotkaData(ws[ws.length - 1].data) : 'waga i obwody';
+  // Kafelki: ostatnia wartość każdego pomiaru i zmiana od poprzedniego
+  const kafelki = POMIARY.map(([k, nazwa, jedn]) => {
+    const z = ws.filter(p => Number.isFinite(p[k]));
+    if (!z.length) return '';
+    const ost = z[z.length - 1], poprz = z[z.length - 2];
+    const r = poprz ? Math.round((ost[k] - poprz[k]) * 10) / 10 : 0;
+    const zmiana = !poprz ? 'pierwszy pomiar' : r ? `<span class="zmiana">${r > 0 ? '+' : '−'}${fmt(Math.abs(r))} ${jedn}</span> od ${krotkaData(poprz.data)}` : 'bez zmian';
+    return `<div class="rekord"><span class="nazwa"><span>${nazwa}</span></span>
+      <span class="wart">${fmt(ost[k])}<small>${jedn}</small></span>
+      <span class="kiedy">${krotkaData(ost.data)} · ${zmiana}</span></div>`;
+  }).join('');
+  $('p-kafelki').innerHTML = kafelki || '<p class="pusto">Tu pojawią się Twoje ostatnie pomiary. Zacznij od wagi — resztę możesz dopisać kiedy chcesz.</p>';
+  // Lista: od najnowszego
+  $('p-lista').innerHTML = ws.length ? [...ws].reverse().map(p => `<div class="pomiar">
+      <span class="kiedy">${ladnaData(p.data)}</span>
+      <span class="wartosci">${POMIARY.filter(([k]) => Number.isFinite(p[k])).map(([k, nazwa, jedn]) => `${nazwa.split(' ')[0]} <b>${fmt(p[k])} ${jedn}</b>`).join(' · ')}</span>
+      <span class="akcje"><button type="button" class="btn cichy maly" data-p-edytuj="${esc(p.id)}">Edytuj</button>
+        <button type="button" class="x" data-p-usun="${esc(p.id)}" aria-label="Usuń pomiar z ${ladnaData(p.data)}">×</button></span>
+    </div>`).join('') : '<p class="pusto">Brak zapisanych pomiarów.</p>';
+  rysujWykresPomiarow();
+}
+
+function rysujWykresPomiarow() {
+  const box = $('p-wykres');
+  if (!pomiary || !box) return;
+  const [k, nazwa, jedn] = POMIARY.find(([k]) => k === $('p-co').value) || POMIARY[0];
+  const pkt = pomiaryChronologicznie().filter(p => Number.isFinite(p[k])).map(p => ({ d: p.data, t: naDate(p.data).getTime(), v: p[k] }));
+  if (pkt.length < 2) {
+    box.innerHTML = `<p class="pusto">${pkt.length ? 'Masz 1 pomiar.' : 'Brak pomiarów.'} Wykres pojawi się po co najmniej 2 pomiarach (${nazwa.toLowerCase()}).</p>`;
+    return;
+  }
+  const pierwszy = pkt[0], teraz = pkt[pkt.length - 1], r = Math.round((teraz.v - pierwszy.v) * 10) / 10;
+  box.innerHTML = svgWykresu(box, pkt, jedn, nazwa + ' — wykres') +
+    `<p class="wykres-info">Teraz: <b>${fmt(teraz.v)} ${jedn}</b> · ${r ? `<b>${r > 0 ? '+' : '−'}${fmt(Math.abs(r))} ${jedn}</b>` : 'bez zmian'} od ${krotkaData(pierwszy.d)}</p>`;
+}
+$('p-co').addEventListener('change', rysujWykresPomiarow);
+
+function koniecEdycjiPomiaru() {
+  pEdycja = null;
+  for (const [k] of POMIARY) $('p-' + k).value = '';
+  $('p-data').value = dzisISO();
+  $('p-tytul').firstChild.textContent = 'Zapisz pomiar ';
+  $('p-zapisz').textContent = 'Zapisz pomiar'; $('p-anuluj').hidden = true;
+}
+function edytujPomiar(id) {
+  const p = (pomiary || []).find(x => x.id === id); if (!p) return;
+  pEdycja = id;
+  $('p-data').value = p.data;
+  for (const [k] of POMIARY) $('p-' + k).value = Number.isFinite(p[k]) ? naPole(p[k]) : '';
+  $('p-tytul').firstChild.textContent = 'Edytujesz pomiar ';
+  $('p-zapisz').textContent = 'Zapisz zmiany'; $('p-anuluj').hidden = false;
+  komP('Puste pole = usuń ten pomiar z tego dnia.', '');
+  $('f-pomiar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('f-pomiar').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!db) return komP('Zapis jest teraz niedostępny.', 'blad');
+  const data = $('p-data').value;
+  if (!data) return komP('Wybierz datę.', 'blad');
+  const nowe = {}, zle = [];
+  for (const [k, nazwa] of POMIARY) {
+    const t = $('p-' + k).value.trim(); if (!t) continue;
+    const n = liczba(t);
+    if (!(n > 0 && n < 1000)) zle.push(nazwa); else nowe[k] = n;
+  }
+  if (zle.length) return komP('Popraw: ' + zle.join(', ') + ' (wpisz liczbę, np. 80,5).', 'blad');
+  if (!Object.keys(nowe).length && !pEdycja) return komP('Wpisz przynajmniej jeden pomiar, np. wagę.', 'blad');
+  const byl = (pomiary || []).find(p => p.id === data);
+  const { id: _, ...stare } = byl || {};   // to, co już było zapisane tego dnia (bez id)
+  $('p-zapisz').disabled = true;
+  try {
+    if (pEdycja) {
+      // edycja: zapisujemy dokładnie to, co w polach; zmiana daty = przeniesienie wpisu na inny dzień
+      if (pEdycja !== data) await db.doc('pomiary/' + pEdycja).delete();
+      if (Object.keys(nowe).length) await db.collection('pomiary').doc(data).set({ ...(pEdycja !== data ? stare : {}), data, ...nowe, utworzono: Date.now() });
+      else await db.doc('pomiary/' + data).delete();
+      koniecEdycjiPomiaru();
+      komP('Zapisano zmiany.', 'ok');
+    } else {
+      // nowy pomiar w dniu, który już ma wpis → dopisujemy do niego (np. rano waga, wieczorem obwody)
+      await db.collection('pomiary').doc(data).set({ ...stare, data, ...nowe, utworzono: Date.now() });
+      for (const [k] of POMIARY) $('p-' + k).value = '';
+      komP((byl ? 'Uzupełniono pomiar z ' : 'Zapisano pomiar z ') + krotkaData(data) + '.', 'ok');
+    }
+  } catch { komP('Nie udało się zapisać. Spróbuj jeszcze raz.', 'blad'); }
+  finally { $('p-zapisz').disabled = false; }
+});
+$('p-anuluj').onclick = () => { koniecEdycjiPomiaru(); komP('', ''); };
+$('p-lista').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.pEdytuj) return edytujPomiar(b.dataset.pEdytuj);
+  if (b.dataset.pUsun) {
+    if (!potwierdzTr(b, 'Usunąć?')) return;
+    try { await db.doc('pomiary/' + b.dataset.pUsun).delete(); if (pEdycja === b.dataset.pUsun) koniecEdycjiPomiaru(); }
+    catch { komP('Nie udało się usunąć.', 'blad'); }
+  }
+});
+$('pomiary-wstecz').onclick = () => pokazZakladke(powrot.pomiary, true);
+
 // ===== Moje konto =====
 function pokazMenuKonta(pokaz) {
   $('konto-menu').hidden = !pokaz;
@@ -1913,6 +2183,8 @@ function pokazMenuKonta(pokaz) {
 $('konto-przycisk').onclick = e => { e.stopPropagation(); pokazMenuKonta($('konto-menu').hidden); };
 $('konto-otworz').onclick = () => { pokazMenuKonta(false); pokazZakladke('konto'); };
 $('konto-treningi').onclick = () => { pokazMenuKonta(false); pokazZakladke('treningi'); };
+$('konto-pomiary').onclick = () => { pokazMenuKonta(false); pokazZakladke('pomiary'); };
+$('konto-do-pomiarow').onclick = () => pokazZakladke('pomiary');
 $('konto-do-treningow').onclick = () => pokazZakladke('treningi');
 $('konto-wstecz').onclick = () => pokazZakladke(powrot.konto, true);
 
@@ -1967,7 +2239,7 @@ function renderKonto() {
 // ===== Odśwież wszystko =====
 function renderWszystko() {
   if (cwiczenia) { renderSelecty(); if (!$('f-pola').children.length) renderPola(); }
-  renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderKopia(); renderSynchro(); renderKonto();
+  renderListaTreningow(); renderDzis(); renderRekordy(); rysujWykres(); renderHistoria(); renderTreningi(); renderPlan(); renderPomiary(); renderKopia(); renderSynchro(); renderKonto();
   // dane z chmury przyszły w trakcie wpisywania serii? nie przerysowujemy, żeby nie zgubić kursora
   const a = document.activeElement;
   if (!(a && $('trening').contains(a) && /INPUT|SELECT/.test(a.tagName))) renderTrening();
@@ -1978,8 +2250,8 @@ function renderWszystko() {
 // "notesu" przeglądarki. Udajemy dokładnie te same funkcje (collection, doc, add, set, update, delete,
 // onSnapshot), dzięki czemu reszta kodu nie musi wiedzieć, gdzie naprawdę leżą dane.
 const KLUCZ = 'dziennik-treningowy-v1';
-const KOLEKCJE = ['cwiczenia', 'wyniki', 'plan'];
-const pusteDane = () => ({ cwiczenia: {}, wyniki: {}, plan: {} });
+const KOLEKCJE = ['cwiczenia', 'wyniki', 'plan', 'pomiary'];
+const pusteDane = () => ({ cwiczenia: {}, wyniki: {}, plan: {}, pomiary: {} });
 let trybLokalny = false;
 function pokazBladZapisu() {
   const b = $('baner'); b.hidden = false;
@@ -2262,8 +2534,8 @@ $('s-polacz').onclick = async () => {
 
 // ===== Kopia zapasowa (plik .json) =====
 const opisDanych = d => {
-  const c = Object.keys(d.cwiczenia || {}).length, w = Object.keys(d.wyniki || {}).length;
-  return `${c} ${odmiana(c, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}, ${w} ${odmiana(w, 'wynik', 'wyniki', 'wyników')}`;
+  const c = Object.keys(d.cwiczenia || {}).length, w = Object.keys(d.wyniki || {}).length, p = Object.keys(d.pomiary || {}).length;
+  return `${c} ${odmiana(c, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}, ${w} ${odmiana(w, 'wynik', 'wyniki', 'wyników')}` + (p ? `, ${p} ${odmiana(p, 'pomiar', 'pomiary', 'pomiarów')}` : '');
 };
 const komKopia = (t, k) => { $('kopia-kom').textContent = t; $('kopia-kom').className = 'komunikat ' + (k || ''); };
 function renderKopia() {
@@ -2345,7 +2617,7 @@ if (sesja) pokazZakladke('trening');   // trening w trakcie → wracamy prosto d
   if (!db) {
     const b = $('baner'); b.hidden = false;
     b.textContent = 'Nie można połączyć się z zapisanymi danymi. Otwórz stronę zalogowany na claude.ai.';
-    cwiczenia = []; wyniki = []; plan = {}; renderWszystko(); return;
+    cwiczenia = []; wyniki = []; plan = {}; pomiary = []; renderWszystko(); return;
   }
   const blad = () => { const b = $('baner'); b.hidden = false; b.textContent = 'Połączenie z danymi zostało przerwane. Odśwież stronę.'; };
   db.collection('cwiczenia').onSnapshot(s => {
@@ -2354,6 +2626,8 @@ if (sesja) pokazZakladke('trening');   // trening w trakcie → wracamy prosto d
   }, blad);
   db.collection('wyniki').onSnapshot(s => { wyniki = s.docs.map(d => ({ id: d.id, ...d.data() })); renderWszystko(); }, blad);
   db.collection('plan').onSnapshot(s => { plan = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderWszystko(); }, blad);
+  // pomiary: gdyby baza ich nie przyjmowała (stara wersja na claude.ai), reszta aplikacji działa dalej
+  db.collection('pomiary').onSnapshot(s => { pomiary = s.docs.map(d => ({ id: d.id, ...d.data() })); renderPomiary(); }, () => { pomiary = []; renderPomiary(); });
 })();
 </script>
 <script>if ('serviceWorker' in navigator) { const byl = !!navigator.serviceWorker.controller; navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }); navigator.serviceWorker.addEventListener('controllerchange', () => { if (byl) location.reload(); }); }</script>
