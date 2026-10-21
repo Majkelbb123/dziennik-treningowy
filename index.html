@@ -505,11 +505,11 @@ body.z-przerwa .app { padding-bottom: 110px; }
     <div id="trening"><p class="pusto">Ładowanie…</p></div>
   </main>
 
-  <!-- OKIENKO 1: WYNIKI -->
+  <!-- OKIENKO 1: WYNIKI — historia, rekordy, postęp -->
   <main id="v-wyniki" role="tabpanel" aria-labelledby="tab-wyniki">
-    <div class="siatka dwie">
-      <section class="panel">
-        <h2 id="f-tytul">Zapisz wynik</h2>
+    <!-- Formularz wyniku: ukryty; pokazuje się tylko przy edycji wyniku albo dopisywaniu wyniku z danego dnia -->
+    <section class="panel" id="f-panel" style="margin-bottom: 16px;" hidden>
+      <h2 id="f-tytul">Zapisz wynik</h2>
         <div class="dzis" id="dzis-w-planie"></div>
         <form id="f-wynik" novalidate>
           <div class="rzad">
@@ -528,33 +528,15 @@ body.z-przerwa .app { padding-bottom: 110px; }
           <label>Notatka (opcjonalnie) <input id="f-notatka" placeholder="np. lekko, dobra technika" maxlength="200"></label>
           <div class="przyciski">
             <button class="btn" type="submit" id="f-zapisz">Zapisz wynik</button>
-            <button class="btn cichy" type="button" id="f-anuluj" hidden>Anuluj edycję</button>
+            <button class="btn cichy" type="button" id="f-anuluj">Zamknij</button>
           </div>
           <p class="komunikat" id="f-komunikat" role="status"></p>
         </form>
-        <details class="nowe" id="nowe-cw">
-          <summary id="nowe-cw-tytul">Twoje ćwiczenia: dodaj lub usuń</summary>
-          <div id="n-formularz" class="form-cw"></div>
-          <datalist id="lista-treningow"></datalist>
-          <ul class="pozycje lista-moich" id="lista-cw" style="margin-top: 16px;"></ul>
-        </details>
-      </section>
-
-      <section class="panel">
-        <h2>Rekordy <small>najlepszy wynik w każdym ćwiczeniu</small></h2>
-        <div id="rekordy" class="rekordy"><p class="pusto">Ładowanie…</p></div>
-      </section>
-    </div>
-
-    <section class="panel" style="margin-top: 16px;">
-      <h2>Postęp</h2>
-      <div class="wykres-gora">
-        <label>Ćwiczenie <select id="w-cw"></select></label>
-      </div>
-      <div id="wykres" class="wykres-box"><p class="pusto">Ładowanie…</p></div>
     </section>
+    <!-- podpowiedzi nazw treningów (pole „Trening” w formularzu ćwiczenia) -->
+    <datalist id="lista-treningow"></datalist>
 
-    <section class="panel" style="margin-top: 16px;">
+    <section class="panel">
       <h2>Historia treningów</h2>
       <div id="przyklady" class="przyklady" hidden>
         <span>Wpisy oznaczone „przykład” są pokazowe.</span>
@@ -563,6 +545,19 @@ body.z-przerwa .app { padding-bottom: 110px; }
       <div id="historia"><p class="pusto">Ładowanie…</p></div>
     </section>
 
+
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Rekordy <small>najlepszy wynik w każdym ćwiczeniu</small></h2>
+      <div id="rekordy" class="rekordy"><p class="pusto">Ładowanie…</p></div>
+    </section>
+
+    <section class="panel" style="margin-top: 16px;">
+      <h2>Postęp</h2>
+      <div class="wykres-gora">
+        <label>Ćwiczenie <select id="w-cw"></select></label>
+      </div>
+      <div id="wykres" class="wykres-box"><p class="pusto">Ładowanie…</p></div>
+    </section>
   </main>
 
   <!-- MOJE TRENINGI (lista ćwiczeń → kalendarz → serie): otwierane z Mojego konta, nie jest zakładką -->
@@ -852,22 +847,11 @@ function renderSelecty() {
     // opcje pogrupowane po treningach (w liście wykresu widać nagłówki: push, nogi…)
     sel.innerHTML = lista.length
       ? cwiczeniaWgTreningu().map(([t, cw]) => `<optgroup label="${esc(t)}">${cw.map(c => `<option value="${esc(c.nazwa)}">${esc(c.nazwa)}</option>`).join('')}</optgroup>`).join('')
-      : '<option value="">Brak ćwiczeń — dodaj poniżej</option>';
+      : '<option value="">Brak ćwiczeń</option>';
     if (lista.some(c => c.nazwa === poprzedni)) sel.value = poprzedni;
   }
   // Świeżo dodane ćwiczenie od razu wybieramy w formularzu wyniku
   if (doWybrania && lista.some(c => c.nazwa === doWybrania)) { $('f-cw').value = doWybrania; doWybrania = null; serie = [{}]; }
-  // Lista Twoich ćwiczeń z możliwością usunięcia
-  $('nowe-cw-tytul').textContent = lista.length ? `Twoje ćwiczenia (${lista.length}): dodaj lub usuń` : 'Dodaj swoje pierwsze ćwiczenie';
-  $('lista-cw').innerHTML = lista.map(c => `<li class="pozycja" style="grid-template-columns: auto 1fr auto auto;">
-    <span class="typ ${esc(c.typ)}"></span>
-    <span class="tresc">${esc(c.nazwa)}
-      <span class="cel">${[TYPY[c.typ]?.nazwa, c.trening].filter(Boolean).map(esc).join(' · ')}</span>
-      </span>
-    <button type="button" class="btn cichy maly" data-edytuj-cw="${esc(c.id)}">Edytuj</button>
-    <button type="button" class="x" data-usun-cw="${esc(c.id)}" aria-label="Usuń ćwiczenie ${esc(c.nazwa)}">×</button></li>`).join('');
-  // Brak ćwiczeń? Od razu pokaż pole do dodania pierwszego
-  if (!lista.length) $('nowe-cw').open = true;
 }
 // Podpowiedzi nazw treningów: te już użyte w ćwiczeniach + nazwy dni z planu (np. "push")
 function nazwyTreningow() {
@@ -879,20 +863,6 @@ function nazwyTreningow() {
 function renderListaTreningow() {
   $('lista-treningow').innerHTML = nazwyTreningow().map(t => `<option value="${esc(t)}"></option>`).join('');
 }
-// Edycja i usuwanie ćwiczenia z listy (zapisane wyniki zostają w historii)
-$('lista-cw').addEventListener('click', async e => {
-  const ed = e.target.closest('[data-edytuj-cw]');
-  if (ed) { edytujCwiczenie('n', ed.dataset.edytujCw); $('n-formularz').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-  const b = e.target.closest('[data-usun-cw]'); if (!b || !db) return;
-  if (!b.classList.contains('potwierdz')) {
-    b.classList.add('potwierdz'); b.textContent = 'Usunąć?';
-    setTimeout(() => { if (b.isConnected) { b.classList.remove('potwierdz'); b.textContent = '×'; } }, 3000);
-    return;
-  }
-  b.disabled = true;
-  try { await db.doc('cwiczenia/' + b.dataset.usunCw).delete(); } catch { b.disabled = false; }
-});
-
 // ===== Formularz: pola zależne od rodzaju ćwiczenia =====
 // ===== Rozwijany wybór ćwiczenia: trening → jego ćwiczenia =====
 const BEZ_TRENINGU = 'Bez treningu';
@@ -1034,10 +1004,16 @@ function edytujWynik(id) {
   }
   $('f-tytul').textContent = 'Edytujesz wynik';
   $('f-zapisz').textContent = 'Zapisz zmiany';
-  $('f-anuluj').hidden = false;
+  $('f-anuluj').textContent = 'Anuluj edycję';
   $('f-wynik').closest('.panel').classList.add('edycja-wyniku');
   komunikat(`Edytujesz: ${w.cwiczenie}, ${ladnaData(w.data)}`, '');
-  $('f-wynik').closest('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  pokazFormularzWyniku();
+}
+// Formularz wyniku nie jest stale widoczny — otwieramy go tylko, gdy jest potrzebny
+function pokazFormularzWyniku() {
+  pokazZakladke('wyniki');
+  $('f-panel').hidden = false;
+  $('f-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function koniecEdycjiWyniku() {
   edytowanyWynik = null;
@@ -1046,10 +1022,10 @@ function koniecEdycjiWyniku() {
   serie = [{}]; renderPola(true);
   $('f-tytul').textContent = 'Zapisz wynik';
   $('f-zapisz').textContent = 'Zapisz wynik';
-  $('f-anuluj').hidden = true;
+  $('f-anuluj').textContent = 'Zamknij';
   $('f-wynik').closest('.panel').classList.remove('edycja-wyniku');
 }
-$('f-anuluj').onclick = () => { koniecEdycjiWyniku(); komunikat('Anulowano edycję.', ''); };
+$('f-anuluj').onclick = () => { koniecEdycjiWyniku(); komunikat('', ''); $('f-panel').hidden = true; };
 
 function komunikat(tekst, klasa) { const k = $('f-komunikat'); k.textContent = tekst; k.className = 'komunikat ' + (klasa || ''); }
 
@@ -1105,7 +1081,7 @@ $('f-wynik').addEventListener('submit', async e => {
 });
 
 // ===== Formularz ćwiczenia (dodawanie i edycja) =====
-// Ten sam formularz jest w dwóch miejscach: "n" = zakładka Wyniki, "m" = Moje treningi
+// Formularz ćwiczenia jest w Moich treningach ("m")
 const edycja = { n: null, m: null };   // id edytowanego ćwiczenia (null = dodajemy nowe)
 let doWybrania = null;                  // nazwa nowego ćwiczenia do wybrania w formularzu wyniku
 
@@ -1193,7 +1169,7 @@ async function zapiszCwiczenie(p) {
     $(p + '-nazwa').focus();
   } catch { komCw(p, 'Nie udało się dodać ćwiczenia.', 'blad'); }
 }
-for (const p of ['n', 'm']) {
+for (const p of ['m']) {
   $(p + '-formularz').innerHTML = htmlFormularzaCw(p);
   $(p + '-dodaj').onclick = () => zapiszCwiczenie(p);
   $(p + '-anuluj').onclick = () => { wyczyscFormularzCw(p, false); komCw(p, '', ''); };
@@ -1228,7 +1204,7 @@ function wybierzCwiczenie(nazwa) {
   if (edytowanyWynik) koniecEdycjiWyniku();
   pokazZakladke('wyniki');
   $('f-cw').value = nazwa; serie = [{}]; renderPola();
-  $('f-wynik').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  pokazFormularzWyniku();
   $('f-pola').querySelector('input')?.focus({ preventScroll: true });
 }
 
@@ -1413,8 +1389,10 @@ function renderHistoria() {
 $('historia').addEventListener('click', async e => {
   const dod = e.target.closest('[data-h-dodaj]');
   if (dod) {   // pusty dzień → formularz „Zapisz wynik” z ustawioną tą datą
+    if (edytowanyWynik) koniecEdycjiWyniku();
     $('f-data').value = dod.dataset.hDodaj;
-    return $('f-wynik').closest('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    komunikat('', '');
+    return pokazFormularzWyniku();
   }
   const k = e.target.closest('[data-h-dzien], [data-h-mies]');
   if (k) {
@@ -1497,7 +1475,7 @@ $('plan').addEventListener('click', e => {
     zapiszDzien(k, d => { d.pozycje.splice(Number(j), 1); });
   }
   if (t.dataset.wpisz) wybierzCwiczenie(t.dataset.wpisz);
-  if (t.dataset.idzDodac) { pokazZakladke('wyniki'); $('nowe-cw').open = true; $('n-nazwa').focus(); }
+  if (t.dataset.idzDodac) { pokazZakladke('treningi'); otworzFormularzM(''); }
 });
 
 // ===== Moje treningi: lista ćwiczeń → kalendarz → serie z wybranego dnia =====
@@ -1602,7 +1580,7 @@ function renderTreningi() {
   if (!mtCw) {
     // wszystkie ćwiczenia: z Twojej listy + te, które mają zapisane wyniki
     const nazwy = new Set([...(cwiczenia || []).map(c => c.nazwa), ...grupy.keys()]);
-    if (!nazwy.size) { box.innerHTML = '<p class="pusto">Tu pojawią się Twoje treningi i ćwiczenia. Dodaj ćwiczenie w zakładce Wyniki.</p>'; return; }
+    if (!nazwy.size) { box.innerHTML = '<p class="pusto">Tu pojawią się Twoje treningi i ćwiczenia. Dodaj ćwiczenie przyciskiem „+ Nowe ćwiczenie” powyżej.</p>'; return; }
     const BEZ = 'Bez przypisanego treningu';
     const wgTreningu = new Map();
     for (const n of nazwy) {
@@ -1767,7 +1745,7 @@ function htmlStartuTreningu() {
   if (trPodglad) { const p = htmlPodgladu(); if (p) return h + p; trPodglad = null; }
   const grupy = cwiczeniaWgTreningu();
   if (!grupy.length) return h + `<section class="panel"><h2>Zacznij trening</h2>
-    <p class="pusto">Nie masz jeszcze ćwiczeń. Dodaj je w zakładce „Treningi” — potem wróć tutaj.</p></section>`;
+    <p class="pusto">Nie masz jeszcze ćwiczeń. Dodaj je w Moich treningach (ikonka konta → Moje treningi) — potem wróć tutaj.</p></section>`;
   const d = plan?.[DNI[DZIS_IDX][0]];
   const zPlanu = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);
   // kiedy ostatnio robiłeś coś z danej grupy
@@ -1868,7 +1846,7 @@ function htmlWyboruTreningu() {
           <span class="typ ${esc(c.typ)}"></span>${esc(c.nazwa)}${w.has(c.nazwa) ? '<small>już jest</small>' : ''}</button>`).join('')}
         ${cw.some(c => !w.has(c.nazwa)) ? `<p style="margin: 6px 0 0;"><button type="button" class="btn cichy maly" data-tr-dodaj-grupe="${esc(t)}">+ Cały trening ${esc(t)}</button></p>` : ''}
       </div></details>`).join('')}</div>
-    <p class="pusto" style="margin-top: 10px; font-size: .9rem;">Nowe ćwiczenie dodasz w zakładce „Treningi”.</p>
+    <p class="pusto" style="margin-top: 10px; font-size: .9rem;">Nowe ćwiczenie dodasz w Moich treningach (ikonka konta).</p>
   </section>`;
 }
 
