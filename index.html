@@ -227,6 +227,11 @@ details.nowe .rzad { margin-top: 10px; }
 .rekord .wart { font-family: var(--font-display); font-weight: 600; font-size: 1.55rem; line-height: 1.15; letter-spacing: -.02em; }
 .rekord .wart small { font-size: 1rem; color: var(--muted); font-weight: 600; margin-left: 3px; }
 .rekord .kiedy { font-size: .8rem; color: var(--muted); }
+/* Rekordy wybrane przez Ciebie: × w rogu kafelka usuwa go z listy (wyniki zostają) */
+.rekord.wybrany { position: relative; padding-right: 30px; }
+.rekord .usun-rek { position: absolute; top: 4px; right: 2px; }
+.rek-lista { border: 1.5px solid var(--accent); border-radius: 8px; padding: 6px; display: grid; gap: 2px; margin-top: 10px; }
+.rek-lista .wl-opcja small { margin-left: auto; color: var(--muted); font-size: .8rem; }
 
 /* Wykres */
 .wykres-gora { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin-bottom: 10px; }
@@ -547,8 +552,10 @@ body.z-przerwa .app { padding-bottom: 110px; }
 
 
     <section class="panel" style="margin-top: 16px;">
-      <h2>Rekordy <small>najlepszy wynik w każdym ćwiczeniu</small></h2>
+      <h2>Rekordy <small>najlepszy wynik w wybranych ćwiczeniach</small></h2>
       <div id="rekordy" class="rekordy"><p class="pusto">Ładowanie…</p></div>
+      <!-- wybór ćwiczeń, których rekordy mają być widoczne -->
+      <div id="rek-dodaj" style="margin-top: 12px;"></div>
     </section>
 
     <section class="panel" style="margin-top: 16px;">
@@ -1209,6 +1216,9 @@ function wybierzCwiczenie(nazwa) {
 }
 
 // ===== Rekordy =====
+// Pokazujemy tylko rekordy ćwiczeń, które sam wybrałeś (pole "rekord" w ćwiczeniu = kiedy dodano).
+// Wybór jest zapisany w bazie, więc telefon i komputer pokazują to samo.
+let rekWybor = false;   // czy otwarta lista "+ Dodaj rekord"
 function renderRekordy() {
   const box = $('rekordy');
   if (!wyniki || !cwiczenia) return;
@@ -1217,8 +1227,13 @@ function renderRekordy() {
     const v = wartosc(w), r = najlepsze.get(w.cwiczenie);
     if (!r || v > r.v) najlepsze.set(w.cwiczenie, { v, w });
   }
-  if (!najlepsze.size) { box.innerHTML = '<p class="pusto">Tu pojawi się Twój najlepszy wynik w każdym ćwiczeniu po zapisaniu pierwszego treningu.</p>'; return; }
-  box.innerHTML = [...najlepsze.values()].sort((a, b) => a.w.cwiczenie.localeCompare(b.w.cwiczenie, 'pl')).map(({ v, w }) => {
+  const wybrane = cwiczenia.filter(c => c.rekord).sort((a, b) => a.rekord - b.rekord);   // w kolejności dodania
+  box.innerHTML = wybrane.map(c => {
+    const usun = `<button type="button" class="x usun-rek" data-rek-usun="${esc(c.id)}" aria-label="Usuń rekord ${esc(c.nazwa)} z listy">×</button>`;
+    const naglowek = `<div class="nazwa"><span class="typ ${esc(c.typ)}"></span><span title="${esc(c.nazwa)}">${esc(c.nazwa)}</span></div>`;
+    const r = najlepsze.get(c.nazwa);
+    if (!r) return `<div class="rekord wybrany t-${esc(c.typ)}">${naglowek}<div class="wart">—</div><div class="kiedy">jeszcze bez wyników</div>${usun}</div>`;
+    const { v, w } = r;
     let wart, dod = '';
     if (w.typ === 'ciezar') {
       const s = najlepszaSeria(w);
@@ -1228,12 +1243,34 @@ function renderRekordy() {
     }
     else if (w.typ === 'cardio') { wart = `${fmt(v)}<small>km</small>`; if (w.czasSek) dod = ` · ${fmtCzas(w.czasSek)}`; }
     else wart = `${fmt(v)}<small>${TYPY[w.typ].jedn}</small>`;
-    return `<div class="rekord t-${esc(w.typ)}">
-      <div class="nazwa"><span class="typ ${esc(w.typ)}"></span><span title="${esc(w.cwiczenie)}">${esc(w.cwiczenie)}</span></div>
+    return `<div class="rekord wybrany t-${esc(w.typ)}">${naglowek}
       <div class="wart">${wart}</div>
-      <div class="kiedy">${krotkaData(w.data)}${dod}</div></div>`;
+      <div class="kiedy">${krotkaData(w.data)}${dod}</div>${usun}</div>`;
   }).join('');
+  if (!wybrane.length) box.innerHTML = `<p class="pusto">${cwiczenia.length ? 'Dodaj ćwiczenia, których rekordy chcesz mieć na oku.' : 'Najpierw dodaj ćwiczenia w Moich treningach.'}</p>`;
+
+  // "+ Dodaj rekord" → lista ćwiczeń, których jeszcze nie ma (pogrupowane po treningach)
+  const doWyboru = cwiczeniaWgTreningu().map(([t, cw]) => [t, cw.filter(c => !c.rekord)]).filter(([, cw]) => cw.length);
+  if (!doWyboru.length) { rekWybor = false; $('rek-dodaj').innerHTML = ''; return; }
+  $('rek-dodaj').innerHTML = `<button type="button" class="btn cichy maly" data-rek-otworz aria-expanded="${rekWybor}">${rekWybor ? 'Zamknij listę' : '+ Dodaj rekord'}</button>` +
+    (rekWybor ? `<div class="rek-lista">${doWyboru.map(([t, cw]) => `<span class="wl-trening" style="padding: 6px 10px 2px; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);">${esc(t)}</span>` +
+      cw.map(c => { const r = najlepsze.get(c.nazwa);
+        return `<button type="button" class="wl-opcja" data-rek-dodaj="${esc(c.id)}"><span class="typ ${esc(c.typ)}"></span>${esc(c.nazwa)}<small>${r ? 'najlepszy: ' + esc(opisRekordu(r)) : 'bez wyników'}</small></button>`; }).join('')).join('')}</div>` : '');
 }
+// Krótki opis najlepszego wyniku na liście wyboru, np. "100 kg × 8"
+function opisRekordu({ v, w }) {
+  if (w.typ === 'ciezar') { const s = najlepszaSeria(w); return fmt(s.kg) + ' kg × ' + s.powt; }
+  return fmt(v) + ' ' + TYPY[w.typ].jedn;
+}
+$('v-wyniki').addEventListener('click', async e => {
+  const b = e.target.closest('[data-rek-otworz], [data-rek-dodaj], [data-rek-usun]'); if (!b) return;
+  if (b.dataset.rekOtworz !== undefined) { rekWybor = !rekWybor; return renderRekordy(); }
+  if (!db) return;
+  try {
+    if (b.dataset.rekDodaj) { rekWybor = false; await db.doc('cwiczenia/' + b.dataset.rekDodaj).update({ rekord: Date.now() }); }
+    else await db.doc('cwiczenia/' + b.dataset.rekUsun).update({ rekord: 0 });
+  } catch { b.disabled = false; }
+});
 
 // ===== Wykres postępu (rysowany ręcznie w SVG) =====
 function ladneSkale(lo, hi, n) {
