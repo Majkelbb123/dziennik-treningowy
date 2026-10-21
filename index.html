@@ -436,6 +436,13 @@ details.trening .cw-wiersz { background: var(--bg); }
 .tr-zegar { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; color: var(--muted); }
 .tr-info { color: var(--muted); font-size: .9rem; margin: 4px 0 10px; overflow-wrap: anywhere; }
 .tr-info b { color: var(--ink); font-weight: 600; }
+/* Podpowiedź progresji: "dziś spróbuj 65 kg" (zielona) albo "zostań przy 62,5 kg" (szara) */
+.progres { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 10px; padding: 7px 10px; border-radius: 6px; font-size: .92rem;
+  border-left: 3px solid var(--muted); background: color-mix(in srgb, var(--muted) 10%, var(--surface)); }
+.progres.wiecej { border-left-color: var(--t-cardio); background: color-mix(in srgb, var(--t-cardio) 12%, var(--surface)); }
+.progres span { flex: 1 1 12rem; min-width: 0; }
+.progres b { font-weight: 600; }
+.tr-podglad .progres { margin: 6px 0 0; }
 /* Wiersz serii: numer | pola | ✓ | × */
 .tr-seria { display: grid; grid-template-columns: 1.4rem 1fr 1fr 46px 30px; gap: 6px; align-items: center; }
 .tr-seria.jedno { grid-template-columns: 1.4rem 1fr 46px 30px; }
@@ -1738,6 +1745,31 @@ const typCw = nazwa => cwPoNazwie(nazwa)?.typ || 'ciezar';
 const ostatniWynik = nazwa => chronologicznie().filter(w => w.cwiczenie === nazwa).pop() || null;
 const celZPlanu = nazwa => (plan?.[DNI[DZIS_IDX][0]]?.pozycje || []).find(p => p.cwiczenie === nazwa)?.cel || '';
 
+// ===== Podpowiedź "dziś spróbuj więcej" (progresja) =====
+// Patrzymy na ostatni trening ćwiczenia z ciężarem: serie z najcięższym ciężarem to serie robocze.
+// Jeśli w każdej zrobiłeś docelową liczbę powtórzeń → proponujemy więcej kg; jeśli nie → ten sam ciężar.
+// Docelowe powtórzenia: z celu w planie (np. "4 × 8 × 60 kg" → 8), a bez planu — z pierwszej serii roboczej.
+const powtZCelu = cel => { const m = String(cel).match(/(\d+)\s*[x×]\s*(\d+)/i); return m ? Number(m[2]) : 0; };
+function progresja(nazwa) {
+  const ost = ostatniWynik(nazwa);
+  if (!ost || ost.typ !== 'ciezar' || typCw(nazwa) !== 'ciezar') return null;
+  const s = (ost.serie || []).filter(x => x.kg > 0 && x.powt > 0);
+  if (!s.length) return null;
+  const kg = Math.max(...s.map(x => x.kg)), robocze = s.filter(x => x.kg === kg);
+  const cel = powtZCelu(celZPlanu(nazwa)) || robocze[0].powt;
+  const krok = kg < 20 ? 1 : 2.5;   // lekkie hantle rosną wolniej niż sztanga
+  return robocze.every(x => x.powt >= cel)
+    ? { wiecej: true, kg: kg + krok, krok, cel }
+    : { wiecej: false, kg, cel, powt: robocze.map(x => x.powt) };
+}
+function htmlProgresji(p, przycisk) {
+  if (!p) return '';
+  const tekst = p.wiecej
+    ? `💪 Dziś spróbuj <b>${fmt(p.kg)} kg</b> (+${fmt(p.krok)}) — ostatnio zrobiłeś wszystkie serie po ${p.cel} powt.`
+    : `Zostań przy <b>${fmt(p.kg)} kg</b> — ostatnio ${p.powt.join(' · ')} powt. Celuj w ${p.cel} w każdej serii.`;
+  return `<p class="progres ${p.wiecej ? 'wiecej' : ''}"><span>${tekst}</span>${przycisk || ''}</p>`;
+}
+
 // Nowa seria od razu wypełniona: kopia poprzedniej serii z dziś, a jeśli to pierwsza — pierwsza seria z ostatniego razu
 function propozycjaSerii(c) {
   const typ = typCw(c.nazwa), poprz = c.serie[c.serie.length - 1];
@@ -1822,6 +1854,7 @@ function htmlPodgladu() {
     return `<li><span class="typ ${esc(c?.typ || '')}"></span><div>
       <span class="nazwa">${esc(n)}</span><br>
       <span class="cel">${ost ? `Ostatnio (${krotkaData(ost.data)}): <b>${esc(opis(ost))}</b>` : 'jeszcze bez wyników'}${cel ? ` · Cel: <b>${esc(cel)}</b>` : ''}</span>
+      ${htmlProgresji(progresja(n))}
       ${c?.notatka ? `<p class="notatka-cw"><span>📌 ${esc(c.notatka)}</span></p>` : ''}</div></li>`;
   }).join('');
   return `<section class="panel">
@@ -1857,10 +1890,15 @@ function htmlKartyTreningu(c, i) {
         <button type="button" class="btn cichy maly" data-tr-notatka-anuluj>Anuluj</button></div>`
     : notatka ? `<p class="notatka-cw"><span>📌 ${esc(notatka)}</span><button type="button" class="btn cichy maly" data-tr-notatka="${i}">Zmień</button></p>`
     : '';
+  // progresja: przycisk "Ustaw" wpisuje proponowany ciężar do serii, których jeszcze nie odhaczyłeś
+  const pr = progresja(c.nazwa);
+  const ustaw = pr?.wiecej && c.serie.some(s => !s.ok && (liczba(s.kg) !== pr.kg || liczba(s.powt) !== pr.cel))
+    ? `<button type="button" class="btn cichy maly" data-tr-progres="${i}">Ustaw ${fmt(pr.kg)} kg × ${pr.cel}</button>` : '';
   return `<section class="panel tr-cw" id="tr-cw-${i}">
     <div class="tr-glowa"><span class="typ ${esc(typ)}"></span><h3>${esc(c.nazwa)}</h3>
       <button type="button" class="x" data-tr-usun-cw="${i}" aria-label="Usuń ${esc(c.nazwa)} z treningu">×</button></div>
     <p class="tr-info">${info}</p>
+    ${htmlProgresji(pr, ustaw)}
     ${htmlNotatki}
     ${c.serie.length ? `<div class="tr-seria ${jedno} etyk" aria-hidden="true"><span></span>${pola.map(p => `<span>${p[1]}</span>`).join('')}<span></span><span></span></div>` : ''}
     ${serie}
@@ -1887,8 +1925,30 @@ function htmlWyboruTreningu() {
   </section>`;
 }
 
+// ===== Ekran nie gaśnie w trakcie treningu =====
+// Wake Lock = prośba do telefonu "nie wygaszaj ekranu". Działa tylko, gdy aplikacja jest na wierzchu —
+// po powrocie do niej (np. z innej aplikacji) prosimy jeszcze raz. Bez treningu ekran gaśnie normalnie.
+let blokadaEkranu = null, proszeOBlokade = false;
+async function pilnujEkranu() {
+  const trzeba = !!sesja && !document.hidden;
+  if (trzeba && !blokadaEkranu && !proszeOBlokade && 'wakeLock' in navigator) {
+    proszeOBlokade = true;
+    try {
+      blokadaEkranu = await navigator.wakeLock.request('screen');
+      blokadaEkranu.addEventListener('release', () => { blokadaEkranu = null; });
+      if (!sesja) pilnujEkranu();   // trening skończył się w trakcie prośby → od razu oddaj
+    } catch {}   // np. tryb oszczędzania baterii — wtedy ekran gaśnie jak zwykle
+    finally { proszeOBlokade = false; }
+  } else if (!sesja && blokadaEkranu) {
+    const b = blokadaEkranu; blokadaEkranu = null;
+    b.release().catch(() => {});
+  }
+}
+document.addEventListener('visibilitychange', pilnujEkranu);
+
 function renderTrening() {
   $('tab-trening').classList.toggle('trwa', !!sesja);
+  pilnujEkranu();
   const box = $('trening');
   if (!cwiczenia) return;
   if (!sesja) { box.innerHTML = htmlStartuTreningu(); tik(); return; }
@@ -1896,7 +1956,7 @@ function renderTrening() {
   const opcje = [45, 60, 90, 120, 150, 180, 240, 300].map(s => `<option value="${s}" ${s === sesja.przerwa ? 'selected' : ''}>${fmtCzas(s)}</option>`).join('');
   box.innerHTML = `<section class="panel">
       <div class="tr-glowa"><h2>${esc(sesja.nazwa)}</h2><span class="tr-zegar" id="tr-zegar"></span></div>
-      <p class="tr-info" style="margin-bottom: 0;">Zrobione serie: <b>${zrobione}</b> · po serii kliknij ✓ — ruszy przerwa</p>
+      <p class="tr-info" style="margin-bottom: 0;">Zrobione serie: <b>${zrobione}</b> · po serii kliknij ✓ — ruszy przerwa${'wakeLock' in navigator ? ' · 🔆 ekran nie zgaśnie' : ''}</p>
       <div class="przyciski" style="margin-top: 10px; align-items: end;">
         <label style="width: 7.5rem;">Przerwa <select id="tr-przerwa">${opcje}</select></label>
         <button type="button" class="btn cichy" data-tr-wybierz>+ Dodaj ćwiczenie</button>
@@ -2023,6 +2083,10 @@ $('trening').addEventListener('click', e => {
     }
   }
   else if (d.trSeria) { const c = sesja.cw[Number(d.trSeria)]; c.serie.push(propozycjaSerii(c)); }
+  else if (d.trProgres) {
+    const c = sesja.cw[Number(d.trProgres)], pr = progresja(c.nazwa);
+    if (pr?.wiecej) for (const s of c.serie) if (!s.ok) { s.kg = naPole(pr.kg); s.powt = String(pr.cel); }
+  }
   else if (d.trUsun) { const [i, j] = d.trUsun.split('-').map(Number); sesja.cw[i].serie.splice(j, 1); }
   else if (d.trUsunCw) {
     const i = Number(d.trUsunCw);
