@@ -411,6 +411,16 @@ details.trening .cw-wiersz { background: var(--bg); }
 /* Trening teraz: zielona kropka na zakładce, gdy trening trwa */
 .zakladki button.trwa::after { content: ""; display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: var(--t-cardio); margin-left: .35em; vertical-align: .12em; }
 .tr-start { display: grid; gap: 8px; }
+/* Podgląd treningu przed startem: spis ćwiczeń + przycisk "Zacznij trening" */
+.tr-podglad { list-style: none; margin: 0 0 16px; padding: 0; }
+.tr-podglad li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 10px 0; }
+.tr-podglad li + li { border-top: 1px dashed var(--line); }
+.tr-podglad .typ { margin-top: .45em; }
+.tr-podglad .nazwa { font-weight: 600; }
+.tr-podglad .cel { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
+.tr-podglad .cel b { color: var(--ink); font-weight: 600; }
+.tr-podglad .notatka-cw { margin: 6px 0 0; }
+.tr-zacznij { display: inline-flex; align-items: center; gap: 8px; font-size: 1.05rem; padding: 12px 20px; }
 .tr-start .cw-wiersz.tr-dzis { border: 2px solid var(--accent); }
 .tr-ile { font-family: var(--font-display); font-weight: 600; font-size: 1rem; min-width: 2.2rem; height: 2.2rem; border-radius: 8px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); display: grid; place-items: center; color: var(--accent); }
 .tr-dzis .tr-ile { background: var(--accent); color: var(--accent-ink); }
@@ -1700,6 +1710,7 @@ let trWybor = false;          // czy otwarta lista "Dodaj ćwiczenie"
 let trPodsumowanie = null;    // co pokazać po zapisaniu treningu
 const trOtwarte = new Set();  // rozwinięte grupy na liście "Dodaj ćwiczenie"
 let trNotatka = null;         // numer karty, na której zmieniasz notatkę ćwiczenia
+let trPodglad = null;         // otwarty podgląd treningu przed startem: {plan: true} albo {grupa: 'push'}
 
 // Jakie pola ma seria w danym rodzaju ćwiczenia: [klucz, napis, podpowiedź]
 const POLA_TR = {
@@ -1736,7 +1747,7 @@ function zacznijTrening(nazwa, lista) {
   sesja = { start: Date.now(), data: dzisISO(), nazwa, przerwa, koniecPrzerwy: null, cw: [] };
   lista.forEach(dodajDoSesji);
   trWybor = !lista.length;          // pusty trening → od razu lista do wyboru ćwiczeń
-  trPodsumowanie = null; trNotatka = null;
+  trPodsumowanie = null; trNotatka = null; trPodglad = null;
   zapiszSesje(); renderTrening();
   window.scrollTo({ top: 0 });
 }
@@ -1753,6 +1764,7 @@ function htmlStartuTreningu() {
       <p style="margin: 10px 0 0;"><button type="button" class="btn cichy maly" data-tr-historia>Zobacz w historii</button></p>
     </section>`;
   }
+  if (trPodglad) { const p = htmlPodgladu(); if (p) return h + p; trPodglad = null; }
   const grupy = cwiczeniaWgTreningu();
   if (!grupy.length) return h + `<section class="panel"><h2>Zacznij trening</h2>
     <p class="pusto">Nie masz jeszcze ćwiczeń. Dodaj je w zakładce „Treningi” — potem wróć tutaj.</p></section>`;
@@ -1774,6 +1786,35 @@ function htmlStartuTreningu() {
   }).join('');
   h += wiersz('data-tr-pusty', '+', 'Pusty trening', 'sam wybierzesz ćwiczenia z dowolnych treningów');
   return h + `</div></section>`;
+}
+
+// Co jest w podglądanym treningu: [tytuł, nazwy ćwiczeń] (null = nie ma już takiego treningu)
+function trescPodgladu() {
+  if (trPodglad?.plan) {
+    const d = plan?.[DNI[DZIS_IDX][0]];
+    const lista = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);
+    return lista.length ? [d.tytul || 'Trening wg planu', lista] : null;
+  }
+  const cw = cwiczeniaWgTreningu().find(([t]) => t === trPodglad?.grupa)?.[1];
+  return cw?.length ? [trPodglad.grupa, cw.map(c => c.nazwa)] : null;
+}
+// Ogólny widok treningu: spis ćwiczeń (ostatni wynik, cel z planu, notatka) i dopiero na dole "Zacznij trening"
+function htmlPodgladu() {
+  const tresc = trescPodgladu(); if (!tresc) return '';
+  const [tytul, lista] = tresc;
+  const pozycje = lista.map(n => {
+    const ost = ostatniWynik(n), c = cwPoNazwie(n), cel = trPodglad.plan ? celZPlanu(n) : '';
+    return `<li><span class="typ ${esc(c?.typ || '')}"></span><div>
+      <span class="nazwa">${esc(n)}</span><br>
+      <span class="cel">${ost ? `Ostatnio (${krotkaData(ost.data)}): <b>${esc(opis(ost))}</b>` : 'jeszcze bez wyników'}${cel ? ` · Cel: <b>${esc(cel)}</b>` : ''}</span>
+      ${c?.notatka ? `<p class="notatka-cw"><span>📌 ${esc(c.notatka)}</span></p>` : ''}</div></li>`;
+  }).join('');
+  return `<section class="panel">
+    <button type="button" class="btn cichy maly" data-tr-podglad-wstecz>‹ Wszystkie treningi</button>
+    <h2 style="margin-top: 14px;">${esc(tytul)} <small>${lista.length} ${odmiana(lista.length, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}</small></h2>
+    <ul class="tr-podglad">${pozycje}</ul>
+    <button type="button" class="btn tr-zacznij" data-tr-start><span aria-hidden="true">▶</span> Zacznij trening</button>
+  </section>`;
 }
 
 // Karta jednego ćwiczenia w trakcie treningu
@@ -1937,11 +1978,11 @@ $('trening').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   const d = b.dataset;
   // --- ekran startowy ---
-  if (d.trPlan !== undefined) {
-    const p = plan[DNI[DZIS_IDX][0]];
-    return zacznijTrening(p.tytul || 'Trening wg planu', [...new Set(p.pozycje.map(x => x.cwiczenie))].filter(cwPoNazwie));
-  }
-  if (d.trGrupa !== undefined) return zacznijTrening(d.trGrupa, (cwiczeniaWgTreningu().find(([t]) => t === d.trGrupa)?.[1] || []).map(c => c.nazwa));
+  // wybór treningu otwiera najpierw jego podgląd — trening zaczyna się dopiero przyciskiem "Zacznij trening"
+  if (d.trPlan !== undefined) { trPodglad = { plan: true }; renderTrening(); return window.scrollTo({ top: 0 }); }
+  if (d.trGrupa !== undefined) { trPodglad = { grupa: d.trGrupa }; renderTrening(); return window.scrollTo({ top: 0 }); }
+  if (d.trPodgladWstecz !== undefined) { trPodglad = null; return renderTrening(); }
+  if (d.trStart !== undefined) { const t = trescPodgladu(); return t ? zacznijTrening(t[0], t[1]) : renderTrening(); }
   if (d.trPusty !== undefined) return zacznijTrening('Własny trening', []);
   if (d.trZamknij !== undefined) { trPodsumowanie = null; return renderTrening(); }
   if (d.trHistoria !== undefined) { hDzien = dzisISO(); hMiesiac = null; renderHistoria(); pokazZakladke('wyniki'); return $('historia').scrollIntoView({ behavior: 'smooth' }); }
