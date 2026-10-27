@@ -416,6 +416,11 @@ details.trening .cw-wiersz { background: var(--bg); }
 /* Trening teraz: zielona kropka na zakładce, gdy trening trwa */
 .zakladki button.trwa::after { content: ""; display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: var(--t-cardio); margin-left: .35em; vertical-align: .12em; }
 .tr-start { display: grid; gap: 8px; }
+/* Wybór dnia treningu (dziś / wczoraj / inny) — żeby dopisać zaległy trening */
+.tr-kiedy { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 12px; }
+.tr-kiedy .przelacznik { margin: 0; }
+.tr-kiedy input[type="date"] { width: auto; padding: 6px 8px; font-size: .9rem; }
+.tr-wstecz { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 10px; margin: 0 0 12px; font-size: .9rem; }
 /* Podgląd treningu przed startem: spis ćwiczeń + przycisk "Zacznij trening" */
 .tr-podglad { list-style: none; margin: 0 0 16px; padding: 0; }
 .tr-podglad li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; padding: 10px 0; }
@@ -730,7 +735,7 @@ const szkic = {};       // to, co wpisujesz w planie, zanim zapiszesz
 // ===== Pomocnicze =====
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const dzisISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const dzisISO = (d = new Date()) => { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
 const naDate = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
 const ladnaData = iso => naDate(iso).toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
 const krotkaData = iso => naDate(iso).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
@@ -1733,6 +1738,13 @@ let trPodsumowanie = null;    // co pokazać po zapisaniu treningu
 const trOtwarte = new Set();  // rozwinięte grupy na liście "Dodaj ćwiczenie"
 let trNotatka = null;         // numer karty, na której zmieniasz notatkę ćwiczenia
 let trPodglad = null;         // otwarty podgląd treningu przed startem: {plan: true} albo {grupa: 'push'}
+let trData = null;            // dzień wybrany przed startem (null = dziś) — tak dopisujesz zaległy trening
+// Data treningu: z trwającej sesji albo wybrana na ekranie startowym
+const dataTr = () => sesja?.data || trData || dzisISO();
+// "Wstecz" = wpisujesz trening z wcześniejszego dnia → bez stopera, przerw i blokady ekranu
+const wsteczTr = () => dataTr() < (sesja ? dzisISO(new Date(sesja.start)) : dzisISO());
+const dzienTygTr = () => (naDate(dataTr()).getDay() + 6) % 7;   // 0 = poniedziałek (do planu tygodniowego)
+const dzienPrzed = n => { const d = new Date(); d.setDate(d.getDate() - n); return dzisISO(d); };
 
 // Jakie pola ma seria w danym rodzaju ćwiczenia: [klucz, napis, podpowiedź]
 const POLA_TR = {
@@ -1743,7 +1755,7 @@ const POLA_TR = {
 };
 const typCw = nazwa => cwPoNazwie(nazwa)?.typ || 'ciezar';
 const ostatniWynik = nazwa => chronologicznie().filter(w => w.cwiczenie === nazwa).pop() || null;
-const celZPlanu = nazwa => (plan?.[DNI[DZIS_IDX][0]]?.pozycje || []).find(p => p.cwiczenie === nazwa)?.cel || '';
+const celZPlanu = nazwa => (plan?.[DNI[dzienTygTr()][0]]?.pozycje || []).find(p => p.cwiczenie === nazwa)?.cel || '';
 
 // ===== Podpowiedź "dziś spróbuj więcej" (progresja) =====
 // Patrzymy na ostatni trening ćwiczenia z ciężarem: serie z najcięższym ciężarem to serie robocze.
@@ -1791,7 +1803,7 @@ function dodajDoSesji(nazwa) {
 function zacznijTrening(nazwa, lista) {
   let przerwa = 90;
   try { przerwa = Number(localStorage.getItem('przerwa')) || 90; } catch {}
-  sesja = { start: Date.now(), data: dzisISO(), nazwa, przerwa, koniecPrzerwy: null, cw: [] };
+  sesja = { start: Date.now(), data: dataTr(), nazwa, przerwa, koniecPrzerwy: null, cw: [] };
   lista.forEach(dodajDoSesji);
   trWybor = !lista.length;          // pusty trening → od razu lista do wyboru ćwiczeń
   trPodsumowanie = null; trNotatka = null; trPodglad = null;
@@ -1805,8 +1817,8 @@ function htmlStartuTreningu() {
   if (trPodsumowanie) {
     const p = trPodsumowanie;
     h += `<section class="panel tr-podsumowanie">
-      <div class="tr-glowa"><h2>Trening zapisany 💪</h2><button type="button" class="x" data-tr-zamknij aria-label="Zamknij podsumowanie">×</button></div>
-      <p style="margin: 6px 0 0;">${esc(p.nazwa)}: ${p.ile} ${odmiana(p.ile, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}, ${p.serii} ${odmiana(p.serii, 'seria', 'serie', 'serii')}, czas ${fmtCzas(p.czas)}.</p>
+      <div class="tr-glowa"><h2>Trening zapisany 💪${p.data !== dzisISO() ? ` <small>${ladnaData(p.data)}</small>` : ''}</h2><button type="button" class="x" data-tr-zamknij aria-label="Zamknij podsumowanie">×</button></div>
+      <p style="margin: 6px 0 0;">${esc(p.nazwa)}: ${p.ile} ${odmiana(p.ile, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}, ${p.serii} ${odmiana(p.serii, 'seria', 'serie', 'serii')}${p.czas ? ', czas ' + fmtCzas(p.czas) : ''}.</p>
       ${p.rekordy.length ? `<p class="komunikat rekord" style="margin-top: 6px;">Nowe rekordy: ${p.rekordy.map(esc).join(', ')}</p>` : ''}
       <p style="margin: 10px 0 0;"><button type="button" class="btn cichy maly" data-tr-historia>Zobacz w historii</button></p>
     </section>`;
@@ -1815,7 +1827,7 @@ function htmlStartuTreningu() {
   const grupy = cwiczeniaWgTreningu();
   if (!grupy.length) return h + `<section class="panel"><h2>Zacznij trening</h2>
     <p class="pusto">Nie masz jeszcze ćwiczeń. Dodaj je w Moich treningach (ikonka konta → Moje treningi) — potem wróć tutaj.</p></section>`;
-  const d = plan?.[DNI[DZIS_IDX][0]];
+  const d = plan?.[DNI[dzienTygTr()][0]];
   const zPlanu = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);
   // kiedy ostatnio robiłeś coś z danej grupy
   const ostatnio = cw => { const n = new Set(cw.map(c => c.nazwa)); return (wyniki || []).filter(w => n.has(w.cwiczenie)).map(w => w.data).sort().pop(); };
@@ -1823,9 +1835,19 @@ function htmlStartuTreningu() {
       <span class="tr-ile">${ile}</span>
       <span class="tresc"><span class="nazwa">${nazwa}</span><span class="cel">${opis}</span></span>
       <span class="strzalka" aria-hidden="true">›</span></button>`;
+  const dzien = dataTr(), wczoraj = dzienPrzed(1);
   h += `<section class="panel"><h2>Zacznij trening <small>w trakcie możesz dorzucić ćwiczenia z innych treningów</small></h2>
+    <div class="tr-kiedy">
+      <div class="przelacznik" role="group" aria-label="Dzień treningu">
+        <button type="button" data-tr-dzien="0" aria-pressed="${dzien === dzisISO()}">Dziś</button>
+        <button type="button" data-tr-dzien="1" aria-pressed="${dzien === wczoraj}">Wczoraj</button>
+      </div>
+      <input type="date" id="tr-data-start" value="${dzien}" max="${dzisISO()}" aria-label="Inny dzień treningu">
+    </div>
+    ${wsteczTr() ? `<p class="tr-wstecz">📅 Dopisujesz trening z dnia <b>${ladnaData(dzien)}</b> — bez stopera i przerw, wpisz serie i odhacz ✓.</p>` : ''}
     <div class="tr-start">`;
-  if (zPlanu.length) h += wiersz('data-tr-plan', zPlanu.length, 'Dziś wg planu' + (d.tytul ? ': ' + esc(d.tytul) : ''), esc(zPlanu.join(', ')), 'tr-dzis');
+  const opisPlanu = wsteczTr() ? `Wg planu (${DNI[dzienTygTr()][1].toLowerCase()})` : 'Dziś wg planu';
+  if (zPlanu.length) h += wiersz('data-tr-plan', zPlanu.length, opisPlanu + (d.tytul ? ': ' + esc(d.tytul) : ''), esc(zPlanu.join(', ')), 'tr-dzis');
   h += grupy.map(([t, cw]) => {
     const kiedy = ostatnio(cw);
     return wiersz(`data-tr-grupa="${esc(t)}"`, cw.length, esc(t),
@@ -1838,7 +1860,7 @@ function htmlStartuTreningu() {
 // Co jest w podglądanym treningu: [tytuł, nazwy ćwiczeń] (null = nie ma już takiego treningu)
 function trescPodgladu() {
   if (trPodglad?.plan) {
-    const d = plan?.[DNI[DZIS_IDX][0]];
+    const d = plan?.[DNI[dzienTygTr()][0]];
     const lista = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);
     return lista.length ? [d.tytul || 'Trening wg planu', lista] : null;
   }
@@ -1860,6 +1882,7 @@ function htmlPodgladu() {
   return `<section class="panel">
     <button type="button" class="btn cichy maly" data-tr-podglad-wstecz>‹ Wszystkie treningi</button>
     <h2 style="margin-top: 14px;">${esc(tytul)} <small>${lista.length} ${odmiana(lista.length, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')}</small></h2>
+    ${wsteczTr() ? `<p class="tr-wstecz">📅 Trening z dnia <b>${ladnaData(dataTr())}</b></p>` : ''}
     <ul class="tr-podglad">${pozycje}</ul>
     <button type="button" class="btn tr-zacznij" data-tr-start><span aria-hidden="true">▶</span> Zacznij trening</button>
   </section>`;
@@ -1930,7 +1953,7 @@ function htmlWyboruTreningu() {
 // po powrocie do niej (np. z innej aplikacji) prosimy jeszcze raz. Bez treningu ekran gaśnie normalnie.
 let blokadaEkranu = null, proszeOBlokade = false;
 async function pilnujEkranu() {
-  const trzeba = !!sesja && !document.hidden;
+  const trzeba = !!sesja && !wsteczTr() && !document.hidden;
   if (trzeba && !blokadaEkranu && !proszeOBlokade && 'wakeLock' in navigator) {
     proszeOBlokade = true;
     try {
@@ -1954,11 +1977,15 @@ function renderTrening() {
   if (!sesja) { box.innerHTML = htmlStartuTreningu(); tik(); return; }
   const zrobione = sesja.cw.reduce((n, c) => n + c.serie.filter(s => s.ok).length, 0);
   const opcje = [45, 60, 90, 120, 150, 180, 240, 300].map(s => `<option value="${s}" ${s === sesja.przerwa ? 'selected' : ''}>${fmtCzas(s)}</option>`).join('');
+  const wstecz = wsteczTr();
   box.innerHTML = `<section class="panel">
-      <div class="tr-glowa"><h2>${esc(sesja.nazwa)}</h2><span class="tr-zegar" id="tr-zegar"></span></div>
-      <p class="tr-info" style="margin-bottom: 0;">Zrobione serie: <b>${zrobione}</b> · po serii kliknij ✓ — ruszy przerwa${'wakeLock' in navigator ? ' · 🔆 ekran nie zgaśnie' : ''}</p>
+      <div class="tr-glowa"><h2>${esc(sesja.nazwa)}</h2>${wstecz ? '' : '<span class="tr-zegar" id="tr-zegar"></span>'}</div>
+      <p class="tr-info" style="margin-bottom: 0;">Zrobione serie: <b>${zrobione}</b> · ${wstecz
+        ? `📅 dopisujesz trening z dnia <b>${ladnaData(sesja.data)}</b> — odhacz ✓ zrobione serie`
+        : `po serii kliknij ✓ — ruszy przerwa${'wakeLock' in navigator ? ' · 🔆 ekran nie zgaśnie' : ''}`}</p>
       <div class="przyciski" style="margin-top: 10px; align-items: end;">
-        <label style="width: 7.5rem;">Przerwa <select id="tr-przerwa">${opcje}</select></label>
+        <label style="width: 10rem;">Data <input type="date" id="tr-data" value="${sesja.data}" max="${dzisISO()}"></label>
+        ${wstecz ? '' : `<label style="width: 7.5rem;">Przerwa <select id="tr-przerwa">${opcje}</select></label>`}
         <button type="button" class="btn cichy" data-tr-wybierz>+ Dodaj ćwiczenie</button>
       </div>
     </section>
@@ -2021,8 +2048,8 @@ async function zakonczTrening(przycisk) {
     przycisk.disabled = false;
     return komTr('Nie udało się zapisać. Spróbuj jeszcze raz.', 'blad');
   }
-  trPodsumowanie = { nazwa: sesja.nazwa, ile: doZapisu.length, serii, rekordy, czas: (Date.now() - sesja.start) / 1000 };
-  sesja = null; trWybor = false; zapiszSesje();
+  trPodsumowanie = { nazwa: sesja.nazwa, data: sesja.data, ile: doZapisu.length, serii, rekordy, czas: wsteczTr() ? 0 : (Date.now() - sesja.start) / 1000 };
+  sesja = null; trWybor = false; trData = null; zapiszSesje();
   renderTrening(); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2060,7 +2087,8 @@ $('trening').addEventListener('click', e => {
   if (d.trStart !== undefined) { const t = trescPodgladu(); return t ? zacznijTrening(t[0], t[1]) : renderTrening(); }
   if (d.trPusty !== undefined) return zacznijTrening('Własny trening', []);
   if (d.trZamknij !== undefined) { trPodsumowanie = null; return renderTrening(); }
-  if (d.trHistoria !== undefined) { hDzien = dzisISO(); hMiesiac = null; renderHistoria(); pokazZakladke('wyniki'); return $('historia').scrollIntoView({ behavior: 'smooth' }); }
+  if (d.trDzien !== undefined) { trData = d.trDzien === '0' ? null : dzienPrzed(Number(d.trDzien)); return renderTrening(); }
+  if (d.trHistoria !== undefined) { hDzien = trPodsumowanie?.data || dzisISO(); hMiesiac = null; renderHistoria(); pokazZakladke('wyniki'); return $('historia').scrollIntoView({ behavior: 'smooth' }); }
   if (!sesja) return;
   // --- notatka do ćwiczenia (zapisuje się od razu w ćwiczeniu, nie w sesji) ---
   if (d.trNotatka !== undefined) {
@@ -2077,7 +2105,7 @@ $('trening').addEventListener('click', e => {
     if (!s.ok && !(POLA_TR[typCw(c.nazwa)] || []).some(([k]) => String(s[k] ?? '').trim())) return b.parentElement.querySelector('input')?.focus();
     s.ok = !s.ok;
     if (s.ok) {
-      zacznijPrzerwe();
+      if (!wsteczTr()) zacznijPrzerwe();   // zaległy trening — nie ma na co czekać
       // odhaczona ostatnia seria → od razu przygotuj następną (niezaznaczoną nie zapiszemy)
       if (j === c.serie.length - 1 && typCw(c.nazwa) !== 'cardio') c.serie.push(propozycjaSerii(c));
     }
@@ -2115,6 +2143,14 @@ $('trening').addEventListener('input', e => {
   if (s) { s[k] = e.target.value; zapiszSesje(); }
 });
 $('trening').addEventListener('change', e => {
+  // wybór dnia: przed startem (tr-data-start) albo już w trakcie (tr-data); przyszłych dni nie przyjmujemy
+  if (e.target.id === 'tr-data-start' || e.target.id === 'tr-data') {
+    const v = e.target.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v > dzisISO()) return renderTrening();
+    if (e.target.id === 'tr-data' && sesja) { sesja.data = v; if (wsteczTr()) sesja.koniecPrzerwy = null; zapiszSesje(); }
+    else trData = v === dzisISO() ? null : v;
+    return renderTrening();
+  }
   if (e.target.id !== 'tr-przerwa' || !sesja) return;
   sesja.przerwa = Number(e.target.value); zapiszSesje();
   try { localStorage.setItem('przerwa', String(sesja.przerwa)); } catch {}   // zapamiętaj na kolejne treningi
