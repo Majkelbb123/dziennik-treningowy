@@ -915,6 +915,11 @@ function renderListaTreningow() {
 const BEZ_TRENINGU = 'Bez treningu';
 const rozwinieteWybor = new Set();   // które treningi są rozwinięte na liście wyboru
 // [["nogi", [ćwiczenia…]], ["push", […]], …] — alfabetycznie, "bez treningu" na końcu
+// Kolejność ćwiczeń: Twoja (pole kolejnosc — ustawiasz ją uchwytem ⠿ w treningu),
+// a ćwiczenia bez numeru (np. nowo dodane) — na końcu, alfabetycznie
+const wgKolejnosci = (a, b) => (a.kolejnosc ?? Infinity) - (b.kolejnosc ?? Infinity) || a.nazwa.localeCompare(b.nazwa, 'pl');
+const pozycjaCw = nazwa => { const i = (cwiczenia || []).findIndex(c => c.nazwa === nazwa); return i < 0 ? Infinity : i; };
+const wgPozycji = (a, b) => pozycjaCw(a) - pozycjaCw(b) || a.localeCompare(b, 'pl');
 function cwiczeniaWgTreningu() {
   const m = new Map();
   for (const c of cwiczenia || []) {
@@ -1680,7 +1685,7 @@ function renderTreningi() {
     // kolejność: alfabetycznie, "bez treningu" na końcu
     const kolejnosc = [...wgTreningu.keys()].sort((a, b) => (a === BEZ) - (b === BEZ) || a.localeCompare(b, 'pl'));
     box.innerHTML = '<div class="treningi-lista">' + kolejnosc.map(t => {
-      const lista = wgTreningu.get(t).sort((a, b) => a.localeCompare(b, 'pl'));
+      const lista = wgTreningu.get(t).sort(wgPozycji);
       const wsT = lista.flatMap(n => grupy.get(n) || []);
       const ostatnio = wsT.reduce((a, w) => w.data > a ? w.data : a, '');
       const dniT = new Set(wsT.map(w => w.data)).size;
@@ -1901,7 +1906,7 @@ function htmlStartuTreningu() {
 function trescPodgladu() {
   if (trPodglad?.plan) {
     const d = plan?.[DNI[dzienTygTr()][0]];
-    const lista = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);
+    const lista = [...new Set((d?.pozycje || []).map(p => p.cwiczenie))].filter(cwPoNazwie);   // kolejność jak w planie
     return lista.length ? [d.tytul || 'Trening wg planu', lista] : null;
   }
   const cw = cwiczeniaWgTreningu().find(([t]) => t === trPodglad?.grupa)?.[1];
@@ -2131,7 +2136,13 @@ $('trening').addEventListener('click', e => {
   if (d.trPlan !== undefined) { trPodglad = { plan: true }; renderTrening(); return window.scrollTo({ top: 0 }); }
   if (d.trGrupa !== undefined) { trPodglad = { grupa: d.trGrupa }; renderTrening(); return window.scrollTo({ top: 0 }); }
   if (d.trPodgladWstecz !== undefined) { trPodglad = null; return renderTrening(); }
-  if (d.trStart !== undefined) { const t = trescPodgladu(); return t ? zacznijTrening(t[0], t[1]) : renderTrening(); }
+  if (d.trStart !== undefined) {
+    const t = trescPodgladu(), dzienPlanu = trPodglad?.plan ? DNI[dzienTygTr()][0] : null;
+    if (!t) return renderTrening();
+    zacznijTrening(t[0], t[1]);
+    if (dzienPlanu) { sesja.plan = dzienPlanu; zapiszSesje(); }   // trening z planu — kolejność zapiszemy w planie
+    return;
+  }
   if (d.trPusty !== undefined) return zacznijTrening('Własny trening', []);
   if (d.trZamknij !== undefined) { trPodsumowanie = null; return renderTrening(); }
   if (d.trDzien !== undefined) { trData = d.trDzien === '0' ? null : dzienPrzed(Number(d.trDzien)); return renderTrening(); }
@@ -2192,6 +2203,27 @@ function przestawCw(z, na) {
   const [c] = sesja.cw.splice(z, 1); sesja.cw.splice(na, 0, c);
   if (trNotatka !== null) trNotatka = null;   // numery kart się zmieniły — zamykamy edycję notatki
   zapiszSesje(); renderTrening();
+  zapamietajKolejnosc();
+}
+// Zapamiętaj kolejność na stałe: ćwiczenia z treningu wskakują w miejsca, które zajmowały na wspólnej liście,
+// w nowym porządku — reszta ćwiczeń zostaje tam, gdzie była. Numery trafiają do bazy (synchronizują się).
+async function zapamietajKolejnosc() {
+  if (!db || !cwiczenia || !sesja) return;
+  // trening z planu: nowa kolejność trafia do planu na ten dzień (lista ćwiczeń zostaje alfabetyczna / Twoja)
+  if (sesja.plan) {
+    const d = plan?.[sesja.plan]; if (!d?.pozycje) return;
+    const nazwy = new Set(sesja.cw.map(c => c.nazwa));
+    const kolejka = sesja.cw.flatMap(c => d.pozycje.filter(p => p.cwiczenie === c.nazwa));   // (ćwiczenie może być w planie 2×)
+    const pozycje = d.pozycje.map(p => nazwy.has(p.cwiczenie) && kolejka.length ? kolejka.shift() : p);
+    try { await db.doc('plan/' + sesja.plan).update({ pozycje }); }
+    catch { komTr('Nie udało się zapamiętać kolejności (w tym treningu zostaje).', 'blad'); }
+    return;
+  }
+  const wSesji = sesja.cw.map(c => cwPoNazwie(c.nazwa)).filter(Boolean), ids = new Set(wSesji.map(c => c.id));
+  const kolejka = [...wSesji];
+  const nowa = cwiczenia.map(c => ids.has(c.id) ? kolejka.shift() : c);
+  try { await Promise.all(nowa.map((c, i) => c.kolejnosc === i ? null : db.doc('cwiczenia/' + c.id).update({ kolejnosc: i }))); }
+  catch { komTr('Nie udało się zapamiętać kolejności (w tym treningu zostaje).', 'blad'); }
 }
 let ciag = null;   // {karta, z, y (gdzie złapano w karcie), id palca}
 $('trening').addEventListener('pointerdown', e => {
@@ -2875,7 +2907,7 @@ if (sesja) pokazZakladke('trening');   // trening w trakcie → wracamy prosto d
   }
   const blad = () => { const b = $('baner'); b.hidden = false; b.textContent = 'Połączenie z danymi zostało przerwane. Odśwież stronę.'; };
   db.collection('cwiczenia').onSnapshot(s => {
-    cwiczenia = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.nazwa.localeCompare(b.nazwa, 'pl'));
+    cwiczenia = s.docs.map(d => ({ id: d.id, ...d.data() })).sort(wgKolejnosci);
     wczytajSerieZPol(); renderSelecty(); renderPola(); renderWszystko();
   }, blad);
   db.collection('wyniki').onSnapshot(s => { wyniki = s.docs.map(d => ({ id: d.id, ...d.data() })); renderWszystko(); }, blad);
