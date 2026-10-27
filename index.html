@@ -402,6 +402,19 @@ details.trening .cw-wiersz { background: var(--bg); }
 .h-dzien h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: -.01em; font-size: 1.05rem; margin: 0 0 2px; }
 .h-tytul { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 0 0 4px; flex-wrap: wrap; }
 .h-tytul .znacznik { margin-left: 0; }
+/* Historia dnia: lista zrobionych ćwiczeń — wyniki widać dopiero po rozwinięciu */
+.h-lista { display: grid; gap: 8px; }
+.h-cw { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.h-cw > summary { list-style: none; cursor: pointer; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+.h-cw > summary::-webkit-details-marker { display: none; }
+.h-cw .h-nazwa { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.h-cw .h-nazwa .znacznik { margin-left: 0; }
+.h-cw .h-ile { color: var(--muted); font-size: .9rem; white-space: nowrap; }
+.h-cw .chev { font-size: 1.4rem; line-height: 1; color: var(--muted); }
+.h-cw[open] .chev { transform: rotate(90deg); }
+.h-cw[open] > summary { border-bottom: 1px dashed var(--line); }
+.h-cw .h-szczegoly { padding: 10px 14px 12px; }
+@media (prefers-reduced-motion: no-preference) { .h-cw .chev { transition: transform .15s; } }
 
 /* Moje treningi: tabela serii */
 .tabela-box { overflow-x: auto; }
@@ -730,6 +743,7 @@ let plan = null;        // {pon: {tytul, pozycje:[{cwiczenie, cel}]}, ...}
 let pomiary = null;     // [{id = data, data, waga, talia, ...}] — pomiary ciała, jeden wpis na dzień
 let serie = [{}];       // wiersze serii w formularzu
 let hDzien = null, hMiesiac = null;   // historia: wybrany dzień i pokazany miesiąc kalendarza
+const hOtwarte = new Set();           // historia: rozwinięte ćwiczenia (id wyników) — zostają rozwinięte po odświeżeniu
 const szkic = {};       // to, co wpisujesz w planie, zanim zapiszesz
 
 // ===== Pomocnicze =====
@@ -1416,24 +1430,36 @@ function renderHistoria() {
   const serii = tegoDnia.reduce((a, w) => a + (w.typ === 'cardio' ? 1 : (w.serie || []).length), 0);
   const objetosc = tegoDnia.filter(w => w.typ === 'ciezar').reduce((a, w) => a + w.serie.reduce((b, x) => b + x.kg * x.powt, 0), 0);
   const ileCw = new Set(tegoDnia.map(w => w.cwiczenie)).size;
-  const wpisy = tegoDnia.map(w => `<div class="tabela-box">
-      <p class="h-tytul"><span class="typ ${esc(w.typ)}"></span>${esc(w.cwiczenie)}${pr.has(w.id) ? '<span class="znacznik pr">Rekord</span>' : ''}${w.przyklad ? '<span class="znacznik przyklad">przykład</span>' : ''}</p>
-      ${tabelaSerii(w)}
-      ${w.notatka ? `<p class="notatka">${esc(w.notatka)}</p>` : ''}
-      <p class="wpis-akcje" style="margin: 8px 0 0;">
-        <button type="button" class="btn cichy maly" data-edytuj-wynik="${esc(w.id)}">Edytuj</button>
-        <button type="button" class="x" data-usun-wynik="${esc(w.id)}" aria-label="Usuń wpis ${esc(w.cwiczenie)}">×</button></p>
-    </div>`).join('');
+  // najpierw tylko nazwy zrobionych ćwiczeń; kliknięcie rozwija serie, notatkę i przyciski
+  const wpisy = tegoDnia.map(w => {
+    const ile = w.typ === 'cardio' ? '' : `${(w.serie || []).length} ${odmiana((w.serie || []).length, 'seria', 'serie', 'serii')}`;
+    return `<details class="h-cw" data-h-cw="${esc(w.id)}" ${hOtwarte.has(w.id) ? 'open' : ''}>
+      <summary><span class="typ ${esc(w.typ)}"></span>
+        <span class="h-nazwa">${esc(w.cwiczenie)}${pr.has(w.id) ? '<span class="znacznik pr">Rekord</span>' : ''}${w.przyklad ? '<span class="znacznik przyklad">przykład</span>' : ''}</span>
+        <span class="h-ile">${ile}</span><span class="chev" aria-hidden="true">›</span></summary>
+      <div class="h-szczegoly">
+        <div class="tabela-box">${tabelaSerii(w)}
+        ${w.notatka ? `<p class="notatka">${esc(w.notatka)}</p>` : ''}</div>
+        <p class="wpis-akcje" style="margin: 8px 0 0;">
+          <button type="button" class="btn cichy maly" data-edytuj-wynik="${esc(w.id)}">Edytuj</button>
+          <button type="button" class="x" data-usun-wynik="${esc(w.id)}" aria-label="Usuń wpis ${esc(w.cwiczenie)}">×</button></p>
+      </div></details>`;
+  }).join('');
 
   box.innerHTML = `<div class="siatka dwie">
     <div>${htmlKalendarza(hMiesiac, dni, hDzien, 'h')}</div>
     <div class="h-dzien">
       <h3>${ladnaData(hDzien)}</h3>
       ${ileCw ? `<p class="pusto" style="margin-bottom: 12px;">${ileCw} ${odmiana(ileCw, 'ćwiczenie', 'ćwiczenia', 'ćwiczeń')} · ${serii} ${odmiana(serii, 'seria', 'serie', 'serii')}${objetosc ? ' · objętość ' + fmt(objetosc) + ' kg' : ''}</p>` : ''}
-      ${wpisy || `<p class="pusto">Brak treningu tego dnia.</p>
+      ${wpisy ? `<div class="h-lista">${wpisy}</div>` : `<p class="pusto">Brak treningu tego dnia.</p>
         <p><button type="button" class="btn cichy maly" data-h-dodaj="${hDzien}">+ Zapisz wynik z tego dnia</button></p>`}
     </div></div>`;
 }
+// zapamiętujemy rozwinięte ćwiczenia (toggle nie "bąbelkuje", stąd true)
+$('historia').addEventListener('toggle', e => {
+  const id = e.target.dataset?.hCw; if (id === undefined) return;
+  if (e.target.open) hOtwarte.add(id); else hOtwarte.delete(id);
+}, true);
 // Usuwanie w dwóch krokach: pierwsze kliknięcie pyta, drugie usuwa
 $('historia').addEventListener('click', async e => {
   const dod = e.target.closest('[data-h-dodaj]');
